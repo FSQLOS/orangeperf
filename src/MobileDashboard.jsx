@@ -41,7 +41,21 @@ export default function MobileDashboard({ config }) {
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO"];
     const KEY_MODELE = ["L30", "WIRE"];
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
-    const BLACKLIST_CA = ["DORO", "HINTO", "FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE"];
+
+    // ⛔ LISTE NOIRE MISE À JOUR
+    const BLACKLIST_CA = [
+        "DORO", "HINTO",               // Seniors
+        "FIXE", "DECT", "GIGASET",     // Fixes
+        "PARAFOUDRE", "MULTIPRISE",    // Élec
+        "PILE",                        // Énergie
+        "SAC", "KRAFT",                // Packaging
+        "CONFIGURATION", "ATELIER",    // Services
+        "FLASH", "EXPERTE",            // Services suite
+        "TIMBRE",                      // Fiscalité
+        "PLANCHE", "PHOTO", "IDENTITE",// Photos d'identité
+        "RECHARGE", "MOBICARTE"        // Recharges prépayées
+    ];
+
     const EXCLUDED_PRICES = [9, 24, 39];
 
     // --- STYLE VISUEL ---
@@ -126,6 +140,7 @@ export default function MobileDashboard({ config }) {
                 } else {
                     const isBlacklisted = BLACKLIST_CA.some(word => libClean.includes(word));
                     const isExcludedPrice = EXCLUDED_PRICES.includes(caVal);
+
                     if (!isBlacklisted && !isExcludedPrice) {
                         tempStats[v].CA += caVal; g_CA += caVal;
                         if (caVal > 0) addItem("🛒 " + libClean);
@@ -165,7 +180,6 @@ export default function MobileDashboard({ config }) {
 
     // --- FONCTION POUR OUVRIR LE GRAPHIQUE ---
     const openComparison = (category) => {
-        // 1. Préparer les données pour le graphique
         const sortedData = Object.keys(stats).map(code => {
             let name = "Inconnu";
             config.team.split('\n').forEach(line => {
@@ -209,7 +223,7 @@ export default function MobileDashboard({ config }) {
         </div>
         <div className="card-label">Avancement</div>
         </div>
-        {/* ... Autres cartes globales (identique avant) ... */}
+
         <div className="stat-card">
         <div className="circular-wrap small">
         <CircularProgressbar
@@ -219,6 +233,7 @@ export default function MobileDashboard({ config }) {
         </div>
         <div className="card-label">Taux Assur</div>
         </div>
+
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
             const current = globalData.counts[key];
@@ -319,7 +334,7 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        {/* MODAL GRAPHIQUE COMPARATIF (Par dessus le détail) */}
+        {/* MODAL GRAPHIQUE COMPARATIF */}
         {compareMode && (
             <div className="glass-overlay" style={{zIndex: 200}} onClick={() => setCompareMode(null)}>
             <div className="glass-modal" style={{height: '60vh'}} onClick={e => e.stopPropagation()}>
