@@ -108,33 +108,22 @@ export default function MobileDashboard({ config }) {
         if(g_ObjTotal > 0 && (g_Realise/g_ObjTotal) > 0.8) confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
     };
 
-    // --- FONCTION DE COMPARAISON AVANCÉE (Gère les taux) ---
     const openComparison = (category) => {
         const sortedData = Object.keys(stats).map(code => {
             let name = "Inconnu";
             config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
-
-            // Calcul Spécial pour le Taux d'Assurance
             let val = 0;
             if (category === 'TxAssur') {
                 const s = stats[code];
                 val = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0;
-            } else {
-                val = stats[code][category];
-            }
-
+            } else { val = stats[code][category]; }
             return { name, val, isMe: selectedSeller ? code === selectedSeller.code : false };
         }).sort((a, b) => b.val - a.val);
-
         setCompareMode({ category: category === 'TxAssur' ? 'Taux Assurance' : category, data: sortedData, isPercent: category === 'TxAssur' });
     };
 
     const getGroupedSales = (details) => {
-        const groups = {
-            '📱 Mobiles & Terminaux': [],
-            '🛡️ Services & Offres': [],
-            '🔌 Accessoires & Divers': []
-        };
+        const groups = { '📱 Mobiles & Terminaux': [], '🛡️ Services & Offres': [], '🔌 Accessoires & Divers': [] };
         details.forEach(item => {
             if (item.includes('📱') || item.includes('♻️')) groups['📱 Mobiles & Terminaux'].push(item);
             else if (item.includes('🛒') || item.includes('↩️')) groups['🔌 Accessoires & Divers'].push(item);
@@ -163,23 +152,28 @@ export default function MobileDashboard({ config }) {
         <div className="scroll-content">
         <div className="section-label">🎯 OBJECTIFS</div>
         <div className="global-scroll">
-        <div className="stat-card featured pulse-effect">
-        <div className="circular-wrap">
-        <CircularProgressbar value={globalData.pct} text={`${globalData.pct}%`} styles={buildStyles({ pathColor:'#fff', textColor:'#fff', trailColor:'rgba(255,255,255,0.3)' })} />
-        </div>
-        <div className="card-label">Global</div>
-        </div>
 
-        {/* TUILE ASSURANCE CLIQUABLE */}
+        {/* TUILE ASSURANCE (MAINTENANT EN FEATURED / ORANGE) */}
         <div
-        className="stat-card"
-        style={{background: 'linear-gradient(135deg, #ffffff, #f0f0f0)', cursor: 'pointer'}}
+        className="stat-card featured pulse-effect"
+        style={{cursor: 'pointer'}}
         onClick={() => openComparison('TxAssur')}
         >
-        <div className="circular-wrap small">
-        <CircularProgressbar value={globalData.assur} maxValue={100} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: globalData.assur >= 42 ? '#32C832' : '#CD3C14', textColor: '#333' })} />
+        <div className="circular-wrap">
+        <CircularProgressbar
+        value={globalData.assur}
+        maxValue={100}
+        text={`${globalData.assur}%`}
+        styles={buildStyles({
+            pathColor: '#fff',
+            textColor: '#fff',
+            trailColor: 'rgba(255,255,255,0.3)'
+        })}
+        />
         </div>
-        <div className="card-label">Taux Assur <BarChart2 size={10} style={{opacity:0.5}}/></div>
+        <div className="card-label" style={{color:'rgba(255,255,255,0.9)'}}>
+        Taux Assur <BarChart2 size={12} style={{opacity:0.8, marginLeft:5}}/>
+        </div>
         </div>
 
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
@@ -306,7 +300,6 @@ export default function MobileDashboard({ config }) {
             <div style={{height: '300px', width: '100%'}}>
             <Bar
             data={{
-                // Affiche "Nom (12%)" si c'est un taux, sinon "Nom (12)"
                 labels: compareMode.data.map(d => `${d.name} (${d.val}${compareMode.isPercent ? '%' : ''})`),
                          datasets: [{
                              data: compareMode.data.map(d => d.val),
