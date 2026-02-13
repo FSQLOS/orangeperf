@@ -9,13 +9,13 @@ export const config = {
     // 2. Les Objectifs GLOBAUX de la boutique pour le mois
     // Le site divisera ces chiffres par le nombre de vendeurs automatiquement
     objectifs: {
-        Terminaux: 306,
-        Mobile: 200,   // Forfaits
-        Broadband: 100, // Internet / Box
-        MIG: 110,
-        MEV: 90,
-        Cyber: 33,
-        MP: 22,         // Maison Protégée
+        Terminaux: 312,
+        Mobile: 127,   // Forfaits
+        Broadband: 69, // Internet / Box
+        MIG: 101,
+        MEV: 57,
+        Cyber: 27,
+        MP: 11,         // Maison Protégée
         Assurance: 42   // En %, c'est un taux, pas un volume
     },
 
