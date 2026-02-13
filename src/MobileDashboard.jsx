@@ -40,7 +40,7 @@ export default function MobileDashboard({ config }) {
     // 2. Détection Modèles SPÉCIFIQUES
     const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI 15", "X5C", "HONOR X5", "A15", "A25", "A35", "A55"];
 
-    // 3. ⛔ MOTS INTERDITS (LISTE BLINDÉE POUR ÉVITER LES CLÉS USB/SD)
+    // 3. ⛔ MOTS INTERDITS (LISTE BLINDÉE)
     const KEY_NOT_TERM = [
         "COQUE", "ETUI", "VERRE", "FILM", "PROT",              // Protection
         "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE",            // Énergie
@@ -55,10 +55,11 @@ export default function MobileDashboard({ config }) {
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
-    // Helpers Date
+    // Helpers Date (MODIFIÉ POUR FORMAT EXCEL 13/2/2026)
     const getTodayStr = () => {
         const d = new Date();
-        return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+        // Plus de padStart(2,'0'), on renvoie 13/2/2026 brut
+        return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
     };
 
     const daysInMonth = () => new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
@@ -109,7 +110,9 @@ export default function MobileDashboard({ config }) {
 
         data.forEach(row => {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
+            // On récupère la date du fichier
             let rowDate = cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"];
+            // Comparaison simple de chaîne de caractères
             let isToday = rowDate && rowDate.includes(todayStr);
 
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
@@ -143,17 +146,12 @@ export default function MobileDashboard({ config }) {
                 let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
                 let hasSpecificModel = KEY_MODELE.some(k => libClean.includes(k));
 
-                // C'est ici que ça se joue : Si ça contient "USB", "CLE", "CARTE"... c'est exclu !
                 let isAccessoryKeyword = KEY_NOT_TERM.some(k => libClean.includes(k));
 
                 let isTerm = (hasStorage || hasSpecificModel) && !isAccessoryKeyword;
 
                 if (isTerm) {
-                    // CORRECTION DU BUG DOUBLE COMPTAGE :
-                    // J'ai supprimé la ligne "updateStats('Terminaux', null);" qui était ici
-
-                    g_Term++; // On garde le compteur global
-
+                    g_Term++;
                     if (KEY_REC.some(k => libClean.includes(k))) {
                         tempStatsMonth[v].REC++;
                         if(isToday) tempStatsDay[v].REC++;
@@ -161,7 +159,6 @@ export default function MobileDashboard({ config }) {
                     } else {
                         updateStats('Terminaux', "📱 " + libClean);
                     }
-
                     if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL"))) {
                         tempStatsMonth[v].Google++;
                         if(isToday) tempStatsDay[v].Google++;
