@@ -11,7 +11,9 @@ export default function MobileDashboard({ config }) {
     const [globalData, setGlobalData] = useState({});
     const [selectedSeller, setSelectedSeller] = useState(null);
 
-    // --- 1. LA LOGIQUE EXACTE DU FICHIER HTML ORIGINEL ---
+    // --- 1. CONFIGURATION TECHNIQUE ---
+
+    // Codes produits fixes (Box, etc.)
     const CODES = {
         Broadband: [804284, 805275, 804900, 804285, 804286, 804288, 804540, 804541, 804901, 805111, 805230],
         Mobile: [805315, 805311, 805307, 805278, 805277, 805276, 805261, 805260, 805259, 805234, 805233, 805232, 805110, 805104, 805103, 805102, 805081, 805070, 805068, 805064, 805063, 805062, 805061, 805055, 805002, 805001, 805000, 804996, 804995, 804994, 804287, 804285, 804283, 804982, 804827, 804826, 804266, 804210],
@@ -21,12 +23,28 @@ export default function MobileDashboard({ config }) {
         Cyber: [805159],
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
+
+    // Mots-clés pour détecter les Smartphones
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO"];
     const KEY_MODELE = ["L30", "WIRE"];
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
-    const EXCLUDED_CA = [9, 24, 39];
 
-    // --- 2. STYLE VISUEL (MODERNE) ---
+    // ⛔ LISTE NOIRE : Mots-clés à bannir du CA Accessoires
+    const BLACKLIST_CA = [
+        "DORO", "HINTO",               // Seniors
+        "FIXE", "DECT", "GIGASET",     // Fixes
+        "PARAFOUDRE", "MULTIPRISE",    // Élec
+        "PILE",                        // Énergie
+        "SAC", "KRAFT",                // Packaging
+        "CONFIGURATION", "ATELIER",    // Services
+        "FLASH", "EXPERTE",            // Services suite
+        "TIMBRE"                       // Fiscalité
+    ];
+
+    // Prix exacts des services à exclure (sécurité supplémentaire)
+    const EXCLUDED_PRICES = [9, 24, 39];
+
+    // --- 2. STYLE VISUEL ---
     const getCategoryStyle = (cat) => {
         switch(cat) {
             case 'Terminaux': return { icon: <Smartphone size={18} />, color: '#000', label: 'Terminaux' };
@@ -83,7 +101,6 @@ export default function MobileDashboard({ config }) {
         let g_Realise = 0, g_CA = 0, g_Term = 0, g_Assur = 0;
         let globalCounts = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0 };
 
-        // --- BOUCLE DE TRAITEMENT (IDENTIQUE HTML) ---
         data.forEach(row => {
             // Nettoyage ligne
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
@@ -106,7 +123,7 @@ export default function MobileDashboard({ config }) {
                 const addItem = (label) => tempStats[v].details.push(label);
                 const inc = (cat) => { tempStats[v][cat]++; globalCounts[cat]++; };
 
-                // LOGIQUE DETECTION PRODUIT
+                // 1. DETECTION SMARTPHONE
                 let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
                 let isTerminal = (hasStorage || KEY_MODELE.some(k => libClean.includes(k)));
 
@@ -120,13 +137,21 @@ export default function MobileDashboard({ config }) {
                         tempStats[v].Google++;
                     }
                 } else {
-                    if (!EXCLUDED_CA.includes(caVal)) {
+                    // 2. LOGIQUE CA ACCESSOIRES (AVEC FILTRE)
+
+                    // On vérifie si c'est un produit banni (Doro, Fixe, Pile, Config...)
+                    const isBlacklisted = BLACKLIST_CA.some(word => libClean.includes(word));
+
+                    // On vérifie si c'est un prix de service interdit
+                    const isExcludedPrice = EXCLUDED_PRICES.includes(caVal);
+
+                    if (!isBlacklisted && !isExcludedPrice) {
                         tempStats[v].CA += caVal; g_CA += caVal;
                         if (caVal > 0) addItem("🛒 " + libClean);
                     }
                 }
 
-                // CHECK CODES EXACTS
+                // 3. CHECK AUTRES PRODUITS (Box, etc.)
                 if (CODES.Broadband.includes(codeArt)) { inc('Broadband'); addItem("🌐 " + libClean); }
                 else if (CODES.Mobile.includes(codeArt)) { inc('Mobile'); addItem("Sim " + libClean); }
                 else if (CODES.MIG.includes(codeArt)) { inc('MIG'); addItem("⚡ " + libClean); }
@@ -144,11 +169,9 @@ export default function MobileDashboard({ config }) {
         let g_ObjTotal = 0;
         const nbVendeurs = teamCodes.length;
 
-        // Calcul du réalisé global pour le % d'avancement
-        // On exclut Assurance et MP du calcul de volume global si besoin, ici on additionne tout ce qui est volume
         ['Broadband', 'Mobile', 'MIG', 'MEV', 'Terminaux', 'Cyber', 'MP'].forEach(k => {
             g_Realise += globalCounts[k];
-            g_ObjTotal += (config.objectifs[k]); // Total boutique direct depuis config
+            g_ObjTotal += (config.objectifs[k]);
         });
 
         setGlobalData({
@@ -167,13 +190,11 @@ export default function MobileDashboard({ config }) {
 
     if (loading) return <div className="loading-screen">🍊 Chargement...</div>;
 
-    // Tri des vendeurs par CA
     const sortedTeamCodes = Object.keys(stats).sort((a, b) => stats[b].CA - stats[a].CA);
     const nbVendeurs = sortedTeamCodes.length;
 
     return (
         <div className="modern-dashboard">
-        {/* HEADER */}
         <div className="header-glass">
         <div>
         <div className="subtitle">Suivi Mensuel</div>
@@ -183,8 +204,6 @@ export default function MobileDashboard({ config }) {
         </div>
 
         <div className="scroll-content">
-
-        {/* GLOBAL SCROLL */}
         <div className="section-label">GLOBAL BOUTIQUE</div>
         <div className="global-scroll">
         <div className="stat-card featured">
@@ -207,13 +226,11 @@ export default function MobileDashboard({ config }) {
         <div className="card-label">Taux Assur</div>
         </div>
 
-        {/* BOUCLE SUR LES CLES DE CONFIG (Sauf Assurance qui est déjà affichée) */}
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
             const current = globalData.counts[key];
             const target = config.objectifs[key];
             const pct = Math.min(100, Math.round((current / target) * 100));
-
             return (
                 <div key={key} className="stat-card">
                 <div className="icon-badge" style={{color: style.color, background: `${style.color}20`}}>
@@ -229,12 +246,10 @@ export default function MobileDashboard({ config }) {
         })}
         </div>
 
-        {/* LEADERBOARD */}
         <div className="section-label" style={{marginTop:'20px'}}>CLASSEMENT ÉQUIPE</div>
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
             const s = stats[code];
-            // Récupération du Nom via le config.team parsé
             let name = "Inconnu";
             config.team.split('\n').forEach(line => {
                 if(line.includes(code)) name = line.split(':')[1].trim();
@@ -267,7 +282,6 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL DETAIL */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal" onClick={e => e.stopPropagation()}>
@@ -283,12 +297,10 @@ export default function MobileDashboard({ config }) {
             <div className="modal-scroll">
             <div className="obj-grid">
             {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
-                // CALCUL OBJECTIF INDIVIDUEL (Global / Nb Vendeurs)
                 const indivTarget = Math.ceil(config.objectifs[key] / nbVendeurs);
                 const current = selectedSeller.data[key];
                 const done = current >= indivTarget;
                 const style = getCategoryStyle(key);
-
                 return (
                     <div key={key} className={`obj-pill ${done ? 'done' : ''}`}>
                     <div className="pill-icon" style={{color: style.color}}>{style.icon}</div>
