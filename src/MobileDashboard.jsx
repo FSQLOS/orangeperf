@@ -38,7 +38,7 @@ export default function MobileDashboard({ config }) {
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
 
     // 2. Détection Modèles SPÉCIFIQUES
-    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI 15", "X5C", "HONOR X5", "A15", "A25", "A35", "A55", "REDMI NOTE" "CROSSCALL STELLAR"];
+    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI 15", "X5C", "HONOR X5", "A15", "A25", "A35", "A55", "REDMI NOTE", "CROSSCALL STELLAR"];
 
     // 3. ⛔ MOTS INTERDITS (LISTE BLINDÉE)
     const KEY_NOT_TERM = [
