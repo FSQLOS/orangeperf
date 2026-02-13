@@ -28,30 +28,10 @@ export default function MobileDashboard({ config }) {
         MEV: [801692], MP: [804411, 804410], Cyber: [805159],
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
-
-    // --- DETECTION INTELLIGENTE ---
-    // 1. Le Stockage (Ajout de 32 et 64 GO)
-    const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
-
-    // 2. Les Marques (Pour capter ceux qui n'ont pas le stockage dans le nom)
-    const KEY_MARQUES = ["L30", "WIRE", "XIAOMI", "REDMI", "SAMSUNG", "GALAXY", "IPHONE", "APPLE", "HONOR", "OPPO", "REALME", "VIVO", "GOOGLE", "PIXEL", "MOTOROLA", "CROSSCALL", "DORO"];
-
-    // 3. ⛔ MOTS INTERDITS (Si un produit contient ça, ce n'est JAMAIS un téléphone, même s'il y a marqué Xiaomi)
-    const KEY_NOT_TERM = [
-        "COQUE", "ETUI", "VERRE", "FILM", "PROT",              // Protection
-        "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE",            // Énergie
-        "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", // Audio Oreilles
-        "ENCEINTE", "SPEAKER", "SOUND",                        // Audio Salon
-        "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT",   // Wearables
-        "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER"         // Divers
-    ];
-
+    const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO"];
+    const KEY_MODELE = ["L30", "WIRE"];
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
-
-    // Liste noire CA Accessoires (Produits qui ne comptent pas du tout)
-    const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
-    // Doro/Hinto retirés de la blacklist CA car maintenant gérés par la détection Terminal ou Accessoire
-
+    const BLACKLIST_CA = ["DORO", "HINTO", "FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH", "X5C", "15C"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
     const getCategoryStyle = (cat) => {
@@ -96,28 +76,13 @@ export default function MobileDashboard({ config }) {
                 const addItem = (label) => tempStats[v].details.push(label);
                 const inc = (cat) => { tempStats[v][cat]++; globalCounts[cat]++; };
 
-                // --- LOGIQUE DETECTION TERMINAL RENFORCÉE ---
-                // 1. Est-ce qu'il y a un mot clé de stockage ? (64 GO, 128 GO...)
-                let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
-
-                // 2. Est-ce qu'il y a une marque de téléphone ?
-                let hasBrand = KEY_MARQUES.some(k => libClean.includes(k));
-
-                // 3. Est-ce qu'il y a un mot INTERDIT ? (Enceinte, Montre, Coque...)
-                let isAccessoryKeyword = KEY_NOT_TERM.some(k => libClean.includes(k));
-
-                // C'est un Terminal SI : (Stockage OU Marque) ET (PAS un mot interdit)
-                let isTerm = (hasStorage || hasBrand) && !isAccessoryKeyword;
-
+                let isTerm = (KEY_STOCKAGE.some(k => libClean.includes(k)) || KEY_MODELE.some(k => libClean.includes(k)));
                 if (isTerm) {
                     inc('Terminaux'); g_Term++;
                     if (KEY_REC.some(k => libClean.includes(k))) { tempStats[v].REC++; addItem("♻️ " + libClean); }
                     else { addItem("📱 " + libClean); }
-                    if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL"))) tempStats[v].Google++;
+                    if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL")) && KEY_STOCKAGE.some(k=>libClean.includes(k))) tempStats[v].Google++;
                 } else {
-                    // C'EST UN ACCESSOIRE (ou service non listé)
-                    // On vérifie qu'il n'est pas dans la liste noire CA (Sacs, Timbres...)
-                    // Note : Les Enceintes Xiaomi passeront ICI car isTerm = false
                     if (!BLACKLIST_CA.some(w => libClean.includes(w)) && !EXCLUDED_PRICES.includes(caVal)) {
                         let caHT = caVal / 1.2; tempStats[v].CA += caHT; g_CA += caHT;
                         if (caVal !== 0) {
@@ -126,8 +91,6 @@ export default function MobileDashboard({ config }) {
                         }
                     }
                 }
-
-                // Detection des Actes/Services via Codes
                 if (CODES.Broadband.includes(codeArt)) { inc('Broadband'); addItem("🌐 " + libClean); }
                 else if (CODES.Mobile.includes(codeArt)) { inc('Mobile'); addItem("Sim " + libClean); }
                 else if (CODES.MIG.includes(codeArt)) { inc('MIG'); addItem("⚡ " + libClean); }
@@ -190,7 +153,7 @@ export default function MobileDashboard({ config }) {
         <div className="section-label">🎯 OBJECTIFS</div>
         <div className="global-scroll">
 
-        {/* TUILE ASSURANCE */}
+        {/* TUILE ASSURANCE (MAINTENANT EN FEATURED / ORANGE) */}
         <div
         className="stat-card featured pulse-effect"
         style={{cursor: 'pointer'}}
