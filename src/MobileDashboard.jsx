@@ -39,8 +39,8 @@ export default function MobileDashboard({ config }) {
 
     // 2. Détection Modèles SPÉCIFIQUES (J'ai ajouté NOTE, REDMI, XIAOMI ici)
     const KEY_MODELE = [
-        "L30", "WIRE", "15C", "REDMI", "NOTE", "XIAOMI", "POCO",
-        "X5C", "HONOR", "A15", "A25", "A35", "A55", "S23", "S24", "S25", "IPHONE"
+        "L30", "WIRE", "15C", "REDMI", "POCO",
+        "X5C", "A15", "A25", "A35", "A55", "S23", "S24", "S25", "IPHONE"
     ];
 
     // 3. ⛔ MOTS INTERDITS (LISTE BLINDÉE)
