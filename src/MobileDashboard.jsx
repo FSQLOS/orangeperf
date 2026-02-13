@@ -5,7 +5,8 @@ import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
-    ChevronRight, X, TrendingUp, AlertTriangle, BarChart2
+    ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
+    Trophy, Calendar, Clock
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
@@ -15,8 +16,13 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function MobileDashboard({ config }) {
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({});
+    // On stocke deux jeux de données : Mois et Jour
+    const [statsMonth, setStatsMonth] = useState({});
+    const [statsDay, setStatsDay] = useState({});
     const [globalData, setGlobalData] = useState({});
+    const [viewMode, setViewMode] = useState('month'); // 'month' ou 'day'
+    const [bigWin, setBigWin] = useState(null); // Record du jour
+
     const [selectedSeller, setSelectedSeller] = useState(null);
     const [compareMode, setCompareMode] = useState(null);
 
@@ -28,11 +34,36 @@ export default function MobileDashboard({ config }) {
         MEV: [801692], MP: [804411, 804410], Cyber: [805159],
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
-    const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO"];
-    const KEY_MODELE = ["L30", "WIRE"];
+
+    const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
+    const KEY_MARQUES = ["L30", "WIRE", "XIAOMI", "REDMI", "SAMSUNG", "GALAXY", "IPHONE", "APPLE", "HONOR", "OPPO", "REALME", "VIVO", "GOOGLE", "PIXEL", "MOTOROLA", "CROSSCALL", "DORO"];
+    const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER"];
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
-    const BLACKLIST_CA = ["DORO", "HINTO", "FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH", "X5C", "15C"];
+    const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
+
+    // Helpers Date
+    const getTodayStr = () => {
+        const d = new Date();
+        return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+    };
+    const parseFrenchDate = (dateStr) => {
+        if(!dateStr) return null;
+        // Format attendu: JJ/MM/AAAA
+        const parts = dateStr.split('/');
+        if(parts.length === 3) return parts.join('/');
+        return null; // ou gérer d'autres formats
+    };
+
+    // Calcul de l'atterrissage
+    const daysInMonth = () => new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+    const currentDay = () => new Date().getDate();
+    const calculateLanding = (currentValue) => {
+        const d = currentDay();
+        const t = daysInMonth();
+        if(d === 0) return 0;
+        return Math.round((currentValue / d) * t);
+    };
 
     const getCategoryStyle = (cat) => {
         switch(cat) {
@@ -58,65 +89,134 @@ export default function MobileDashboard({ config }) {
         let teamMap = {};
         config.team.trim().split('\n').forEach(line => { if(line.includes(':')) { const [c, n] = line.split(':'); teamMap[c.trim()] = n.trim(); }});
         const teamCodes = Object.keys(teamMap);
-        let tempStats = {};
-        teamCodes.forEach(code => tempStats[code] = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0, Cyber:0, MP:0, Assurance:0, REC:0, CA:0, details: [] });
+
+        // Init Stats (Mois & Jour)
+        let tempStatsMonth = {}, tempStatsDay = {};
+        teamCodes.forEach(code => {
+            tempStatsMonth[code] = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0, Cyber:0, MP:0, Assurance:0, REC:0, CA:0, details: [] };
+            tempStatsDay[code] = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0, Cyber:0, MP:0, Assurance:0, REC:0, CA:0, details: [] };
+        });
+
+        // Variables Globales
         let g_Realise=0, g_CA=0, g_Term=0, g_Assur=0;
         let globalCounts = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0 };
 
+        // Big Win Init
+        let highestSale = { amount: 0, seller: "", item: "" };
+        const todayStr = getTodayStr();
+
         data.forEach(row => {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
+
+            // Detection Date (Champs possibles : Date, Date de pièce, Date Facture...)
+            let rowDate = cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"];
+            // Si pas de date, on assume que c'est aujourd'hui pour être sûr de l'afficher, ou on ignore.
+            // Pour la sécurité, si pas de date, on compte dans le MOIS mais pas JOUR (sauf si forcé).
+            let isToday = rowDate && rowDate.includes(todayStr);
+
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
             let v = teamCodes.find(code => vRaw.includes(code));
+
             if (v) {
                 let codeArt = parseInt(cleanRow["Code Article"]);
                 let rawLib = (cleanRow["Libellé Article"] || "").toString().toUpperCase();
                 let libClean = rawLib.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
                 let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
-                if (libClean.startsWith("WP")) return;
-                const addItem = (label) => tempStats[v].details.push(label);
-                const inc = (cat) => { tempStats[v][cat]++; globalCounts[cat]++; };
 
-                let isTerm = (KEY_STOCKAGE.some(k => libClean.includes(k)) || KEY_MODELE.some(k => libClean.includes(k)));
+                if (libClean.startsWith("WP")) return;
+
+                // Fonction d'incrémentation (Met à jour Mois ET Jour si isToday)
+                const updateStats = (cat, label, isCa = false, amount = 0) => {
+                    // Mois
+                    if(isCa) { tempStatsMonth[v].CA += amount; }
+                    else { tempStatsMonth[v][cat]++; }
+                    if(label) tempStatsMonth[v].details.push(label);
+
+                    // Jour
+                    if(isToday) {
+                        if(isCa) { tempStatsDay[v].CA += amount; }
+                        else { tempStatsDay[v][cat]++; }
+                        if(label) tempStatsDay[v].details.push(label);
+                    }
+
+                    // Global Month Counts
+                    if(!isCa) { globalCounts[cat]++; }
+                    else { g_CA += amount; }
+                };
+
+                // --- BIG WIN CHECK (Uniquement sur CA Valide et Aujourd'hui) ---
+                if (isToday && caVal > highestSale.amount && !EXCLUDED_PRICES.includes(caVal)) {
+                    highestSale = { amount: caVal, seller: teamMap[v], item: libClean };
+                }
+
+                // --- LOGIQUE METIER ---
+                let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
+                let hasBrand = KEY_MARQUES.some(k => libClean.includes(k));
+                let isAccessoryKeyword = KEY_NOT_TERM.some(k => libClean.includes(k));
+                let isTerm = (hasStorage || hasBrand) && !isAccessoryKeyword;
+
                 if (isTerm) {
-                    inc('Terminaux'); g_Term++;
-                    if (KEY_REC.some(k => libClean.includes(k))) { tempStats[v].REC++; addItem("♻️ " + libClean); }
-                    else { addItem("📱 " + libClean); }
-                    if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL")) && KEY_STOCKAGE.some(k=>libClean.includes(k))) tempStats[v].Google++;
+                    updateStats('Terminaux', null); g_Term++;
+                    if (KEY_REC.some(k => libClean.includes(k))) {
+                        tempStatsMonth[v].REC++;
+                        if(isToday) tempStatsDay[v].REC++;
+                        updateStats('Terminaux', "♻️ " + libClean); // Juste pour le détail
+                    } else {
+                        updateStats('Terminaux', "📱 " + libClean);
+                    }
+                    if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL"))) {
+                        tempStatsMonth[v].Google++;
+                        if(isToday) tempStatsDay[v].Google++;
+                    }
                 } else {
                     if (!BLACKLIST_CA.some(w => libClean.includes(w)) && !EXCLUDED_PRICES.includes(caVal)) {
-                        let caHT = caVal / 1.2; tempStats[v].CA += caHT; g_CA += caHT;
+                        let caHT = caVal / 1.2;
                         if (caVal !== 0) {
                             const icon = caVal > 0 ? "🛒" : "↩️";
-                            addItem(`${icon} ${libClean} (${Math.round(caHT)}€)`);
+                            updateStats('null', `${icon} ${libClean} (${Math.round(caHT)}€)`, true, caHT);
                         }
                     }
                 }
-                if (CODES.Broadband.includes(codeArt)) { inc('Broadband'); addItem("🌐 " + libClean); }
-                else if (CODES.Mobile.includes(codeArt)) { inc('Mobile'); addItem("Sim " + libClean); }
-                else if (CODES.MIG.includes(codeArt)) { inc('MIG'); addItem("⚡ " + libClean); }
-                else if (CODES.MEV.includes(codeArt)) { inc('MEV'); addItem("🔧 " + libClean); }
-                else if (CODES.MP.includes(codeArt)) { inc('MP'); addItem("🏠 " + libClean); }
-                else if (CODES.Cyber.includes(codeArt)) { inc('Cyber'); addItem("🛡️ " + libClean); }
-                else if (CODES.Assurance.includes(codeArt)) { tempStats[v].Assurance++; globalCounts.Assurance++; g_Assur++; addItem("🛡️ Assur: " + libClean); }
+
+                if (CODES.Broadband.includes(codeArt)) updateStats('Broadband', "🌐 " + libClean);
+                else if (CODES.Mobile.includes(codeArt)) updateStats('Mobile', "Sim " + libClean);
+                else if (CODES.MIG.includes(codeArt)) updateStats('MIG', "⚡ " + libClean);
+                else if (CODES.MEV.includes(codeArt)) updateStats('MEV', "🔧 " + libClean);
+                else if (CODES.MP.includes(codeArt)) updateStats('MP', "🏠 " + libClean);
+                else if (CODES.Cyber.includes(codeArt)) updateStats('Cyber', "🛡️ " + libClean);
+                else if (CODES.Assurance.includes(codeArt)) {
+                    updateStats('Assurance', "🛡️ Assur: " + libClean);
+                    g_Assur++;
+                }
             }
         });
 
+        // Set Globals
         let g_ObjTotal = 0;
         ['Broadband', 'Mobile', 'MIG', 'MEV', 'Terminaux', 'Cyber', 'MP'].forEach(k => { g_Realise += globalCounts[k]; g_ObjTotal += (config.objectifs[k]); });
+
         setGlobalData({ ca: g_CA, pct: g_ObjTotal > 0 ? Math.round((g_Realise/g_ObjTotal)*100) : 0, assur: g_Term > 0 ? Math.round((g_Assur/g_Term)*100) : 0, counts: globalCounts });
-        setStats(tempStats); setLoading(false);
+
+        setStatsMonth(tempStatsMonth);
+        setStatsDay(tempStatsDay);
+        if(highestSale.amount > 0) setBigWin(highestSale);
+
+        setLoading(false);
         if(g_ObjTotal > 0 && (g_Realise/g_ObjTotal) > 0.8) confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
     };
 
     const openComparison = (category) => {
-        const sortedData = Object.keys(stats).map(code => {
+        // On utilise les stats du mode actuel (Mois ou Jour)
+        const activeStats = viewMode === 'month' ? statsMonth : statsDay;
+
+        const sortedData = Object.keys(activeStats).map(code => {
             let name = "Inconnu";
             config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
             let val = 0;
             if (category === 'TxAssur') {
-                const s = stats[code];
+                const s = activeStats[code];
                 val = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0;
-            } else { val = stats[code][category]; }
+            } else { val = activeStats[code][category]; }
             return { name, val, isMe: selectedSeller ? code === selectedSeller.code : false };
         }).sort((a, b) => b.val - a.val);
         setCompareMode({ category: category === 'TxAssur' ? 'Taux Assurance' : category, data: sortedData, isPercent: category === 'TxAssur' });
@@ -132,28 +232,52 @@ export default function MobileDashboard({ config }) {
             return groups;
     };
 
-    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Sync...</p></div>;
-    const sortedTeamCodes = Object.keys(stats).sort((a, b) => stats[b].CA - stats[a].CA);
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Analyse...</p></div>;
+
+    // SÉLECTION DES DONNÉES À AFFICHER SELON LE MODE
+    const currentStats = viewMode === 'month' ? statsMonth : statsDay;
+    const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
     const nbVendeurs = sortedTeamCodes.length;
 
     return (
         <div className="modern-dashboard">
         <div className="header-glass">
         <div className="header-content">
-        <div className="subtitle">Performance</div>
-        <div className="title">Orange <span>Perf</span></div>
+        <div className="subtitle">Orange Perf</div>
+        <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
         <div className="ca-badge">
-        <span className="ca-label">CA ACC. HT</span>
+        <span className="ca-label">CA ACC. HT (Mois)</span>
         <span className="ca-val"><CountUp end={Math.round(globalData.ca)} suffix="€" /></span>
         </div>
         </div>
 
+        {/* BIG WIN CARD (RECORD DU JOUR) */}
+        {bigWin && viewMode === 'day' && (
+            <div className="big-win-card slide-in">
+            <div className="bw-icon">🏆</div>
+            <div className="bw-info">
+            <div className="bw-label">RECORD DU JOUR</div>
+            <div className="bw-seller">{bigWin.seller} <span className="bw-amount">{Math.round(bigWin.amount)}€</span></div>
+            <div className="bw-item">{bigWin.item}</div>
+            </div>
+            </div>
+        )}
+
+        {/* TOGGLE SWITCH MOIS / JOUR */}
+        <div className="toggle-container">
+        <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}>
+        <Clock size={14} /> Aujourd'hui
+        </div>
+        <div className={`toggle-btn ${viewMode === 'month' ? 'active' : ''}`} onClick={() => setViewMode('month')}>
+        <Calendar size={14} /> Ce Mois
+        </div>
+        </div>
+
         <div className="scroll-content">
-        <div className="section-label">🎯 OBJECTIFS</div>
+        <div className="section-label">🎯 {viewMode === 'month' ? 'OBJECTIFS MENSUELS' : 'VENTES DU JOUR'}</div>
         <div className="global-scroll">
 
-        {/* TUILE ASSURANCE (MAINTENANT EN FEATURED / ORANGE) */}
         <div
         className="stat-card featured pulse-effect"
         style={{cursor: 'pointer'}}
@@ -164,11 +288,7 @@ export default function MobileDashboard({ config }) {
         value={globalData.assur}
         maxValue={100}
         text={`${globalData.assur}%`}
-        styles={buildStyles({
-            pathColor: '#fff',
-            textColor: '#fff',
-            trailColor: 'rgba(255,255,255,0.3)'
-        })}
+        styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })}
         />
         </div>
         <div className="card-label" style={{color:'rgba(255,255,255,0.9)'}}>
@@ -178,16 +298,20 @@ export default function MobileDashboard({ config }) {
 
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
-            const current = globalData.counts[key];
+            // En mode JOUR, on affiche juste le réalisé du jour (pas de comparaison cible mensuelle pertinente ici)
+            const current = viewMode === 'month' ? globalData.counts[key] : Object.values(statsDay).reduce((acc, s) => acc + s[key], 0);
             const target = config.objectifs[key];
-            const pct = Math.min(100, Math.round((current / target) * 100));
+            // En mode jour, la barre de progression se base sur un prorata journalier (target / 25 jours ouvrés approx)
+            const dayTarget = Math.round(target / 25) || 1;
+            const pct = Math.min(100, Math.round((current / (viewMode === 'month' ? target : dayTarget)) * 100));
+
             return (
                 <div key={key} className="stat-card">
                 <div className="icon-badge" style={{background: style.grad, color: '#fff', boxShadow: `0 3px 8px ${style.color}40`}}>
                 {style.icon}
                 </div>
                 <div className="stat-value">
-                <CountUp end={current} /> <span className="stat-target">/ {target}</span>
+                <CountUp end={current} /> <span className="stat-target">{viewMode === 'month' ? `/ ${target}` : ''}</span>
                 </div>
                 <div className="progress-bar-mini">
                 <div className="fill" style={{width: `${pct}%`, background: style.grad}}></div>
@@ -198,10 +322,13 @@ export default function MobileDashboard({ config }) {
         })}
         </div>
 
-        <div className="section-label" style={{marginTop:'20px'}}>🏆 TOP VENDEURS</div>
+        <div className="section-label" style={{marginTop:'20px'}}>🏆 CLASSEMENT {viewMode === 'month' ? 'GÉNÉRAL' : 'DU JOUR'}</div>
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
-            const s = stats[code];
+            const s = currentStats[code];
+            // Si mode jour et CA = 0, on n'affiche pas (optionnel, mais plus propre)
+            if (viewMode === 'day' && s.CA === 0 && s.Terminaux === 0 && s.Mobile === 0) return null;
+
             let name = "Inconnu";
             config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
             const isTop = index < 3;
@@ -228,6 +355,9 @@ export default function MobileDashboard({ config }) {
                 </div>
             )
         })}
+        {viewMode === 'day' && sortedTeamCodes.every(c => currentStats[c].CA === 0) && (
+            <div style={{textAlign:'center', padding:'20px', color:'#999'}}>La journée commence ! ☀️</div>
+        )}
         </div>
         </div>
 
@@ -238,17 +368,31 @@ export default function MobileDashboard({ config }) {
             <div className="modal-avatar-large">{selectedSeller.name[0]}</div>
             <div className="modal-title">
             <h2>{selectedSeller.name}</h2>
-            <p>Cliquez pour comparer 👇</p>
+            <p>Détail {viewMode === 'month' ? 'Mensuel' : 'Journalier'}</p>
             </div>
             <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
             </div>
             <div className="modal-scroll">
+
+            {/* NOUVEAU : PROJECTION ATTERRISSAGE (Uniquement en mode MOIS) */}
+            {viewMode === 'month' && (
+                <div className="projection-banner">
+                🔮 Atterrissage estimé :
+                <strong> {calculateLanding(selectedSeller.data.CA).toLocaleString()} €</strong>
+                <div className="proj-sub">Basé sur le rythme actuel</div>
+                </div>
+            )}
+
             <div className="obj-grid">
             {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
                 const indivTarget = Math.ceil(config.objectifs[key] / nbVendeurs);
                 const current = selectedSeller.data[key];
+                // Projection pour les items aussi
+                const landing = calculateLanding(current);
+
                 const done = current >= indivTarget;
                 const style = getCategoryStyle(key);
+
                 return (
                     <div key={key} className={`obj-pill ${done ? 'done-glow' : ''}`} onClick={() => openComparison(key)}>
                     <div className="pill-icon" style={{background: style.grad, color: 'white', boxShadow: `0 2px 5px ${style.color}40`}}>
@@ -256,10 +400,20 @@ export default function MobileDashboard({ config }) {
                     </div>
                     <div className="pill-info">
                     <div className="pill-label">{style.label} <BarChart2 size={10} style={{opacity:0.6}}/></div>
-                    <div className="pill-val"><strong>{current}</strong> <span className="target-mini">/ {indivTarget}</span></div>
+                    <div className="pill-val">
+                    <strong>{current}</strong>
+                    {viewMode === 'month' && <span className="target-mini"> / {indivTarget}</span>}
+                    </div>
+                    {/* Barre de progression vs Objectif (Mois) ou Pace (Jour) */}
                     <div className="mini-prog-track">
                     <div className="mini-prog-fill" style={{width: `${Math.min(100, (current/indivTarget)*100)}%`, background: done ? '#32C832' : style.grad}}></div>
                     </div>
+                    {/* Petit badge Atterrissage */}
+                    {viewMode === 'month' && current < indivTarget && (
+                        <div className="landing-mini" style={{color: landing >= indivTarget ? '#32C832' : '#FF7900'}}>
+                        Att: {landing}
+                        </div>
+                    )}
                     </div>
                     {done && <div className="check-mark-anim">🏆</div>}
                     </div>
@@ -267,9 +421,9 @@ export default function MobileDashboard({ config }) {
             })}
             </div>
 
-            <h3 className="history-title">Dernières ventes</h3>
+            <h3 className="history-title">Historique des ventes</h3>
             <div className="history-list">
-            {selectedSeller.data.details.length === 0 ? <div style={{textAlign:'center', color:'#ccc'}}>Rien à afficher</div> :
+            {selectedSeller.data.details.length === 0 ? <div style={{textAlign:'center', color:'#ccc'}}>Aucune vente sur cette période</div> :
             Object.entries(getGroupedSales(selectedSeller.data.details)).map(([groupName, items]) => (
                 items.length > 0 && (
                     <div key={groupName} className="history-group">
