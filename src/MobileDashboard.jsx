@@ -34,15 +34,22 @@ export default function MobileDashboard({ config }) {
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
 
-    // 1. Détection Stockage (Classique)
+    // 1. Détection Stockage
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
 
-    // 2. Détection Modèles SPÉCIFIQUES (Ceux qui n'ont pas de stockage dans le nom)
-    // J'ai enlevé les marques génériques pour ne pas voler les accessoires
+    // 2. Détection Modèles SPÉCIFIQUES
     const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI 15", "X5C", "HONOR X5", "A15", "A25", "A35", "A55"];
 
-    // 3. Sécurité : Mots qui font qu'un produit n'est JAMAIS un téléphone
-    const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER"];
+    // 3. ⛔ MOTS INTERDITS (LISTE BLINDÉE POUR ÉVITER LES CLÉS USB/SD)
+    const KEY_NOT_TERM = [
+        "COQUE", "ETUI", "VERRE", "FILM", "PROT",              // Protection
+        "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE",            // Énergie
+        "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", // Audio
+        "ENCEINTE", "SPEAKER", "SOUND",                        // Son
+        "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT",   // Wearables
+        "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER",        // Access
+        "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE" // ⛔ Stockage externe
+    ];
 
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
@@ -132,20 +139,21 @@ export default function MobileDashboard({ config }) {
                     highestSale = { amount: caVal, seller: teamMap[v], item: libClean };
                 }
 
-                // --- LOGIQUE CORRIGÉE ---
-                // 1. Stockage standard (128 GO...)
+                // --- LOGIQUE DETECTION TERMINAL CORRIGÉE ---
                 let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
-
-                // 2. Modèles SPÉCIFIQUES (Seulement 15C, X5C, etc.) -> PLUS DE MARQUES GÉNÉRIQUES
                 let hasSpecificModel = KEY_MODELE.some(k => libClean.includes(k));
 
-                // 3. Sécurité Mots Interdits
+                // C'est ici que ça se joue : Si ça contient "USB", "CLE", "CARTE"... c'est exclu !
                 let isAccessoryKeyword = KEY_NOT_TERM.some(k => libClean.includes(k));
 
                 let isTerm = (hasStorage || hasSpecificModel) && !isAccessoryKeyword;
 
                 if (isTerm) {
-                    updateStats('Terminaux', null); g_Term++;
+                    // CORRECTION DU BUG DOUBLE COMPTAGE :
+                    // J'ai supprimé la ligne "updateStats('Terminaux', null);" qui était ici
+
+                    g_Term++; // On garde le compteur global
+
                     if (KEY_REC.some(k => libClean.includes(k))) {
                         tempStatsMonth[v].REC++;
                         if(isToday) tempStatsDay[v].REC++;
@@ -153,12 +161,13 @@ export default function MobileDashboard({ config }) {
                     } else {
                         updateStats('Terminaux', "📱 " + libClean);
                     }
+
                     if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL"))) {
                         tempStatsMonth[v].Google++;
                         if(isToday) tempStatsDay[v].Google++;
                     }
                 } else {
-                    // C'est un Accessoire (ou autre)
+                    // ACCESSORIES
                     if (!BLACKLIST_CA.some(w => libClean.includes(w)) && !EXCLUDED_PRICES.includes(caVal)) {
                         let caHT = caVal / 1.2;
                         if (caVal !== 0) {
