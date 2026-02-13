@@ -16,12 +16,11 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function MobileDashboard({ config }) {
     const [loading, setLoading] = useState(true);
-    // On stocke deux jeux de données : Mois et Jour
     const [statsMonth, setStatsMonth] = useState({});
     const [statsDay, setStatsDay] = useState({});
     const [globalData, setGlobalData] = useState({});
-    const [viewMode, setViewMode] = useState('month'); // 'month' ou 'day'
-    const [bigWin, setBigWin] = useState(null); // Record du jour
+    const [viewMode, setViewMode] = useState('month');
+    const [bigWin, setBigWin] = useState(null);
 
     const [selectedSeller, setSelectedSeller] = useState(null);
     const [compareMode, setCompareMode] = useState(null);
@@ -35,9 +34,16 @@ export default function MobileDashboard({ config }) {
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
 
+    // 1. Détection Stockage (Classique)
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
-    const KEY_MARQUES = ["L30", "WIRE", "XIAOMI", "REDMI", "SAMSUNG", "GALAXY", "IPHONE", "APPLE", "HONOR", "OPPO", "REALME", "VIVO", "GOOGLE", "PIXEL", "MOTOROLA", "CROSSCALL", "DORO"];
+
+    // 2. Détection Modèles SPÉCIFIQUES (Ceux qui n'ont pas de stockage dans le nom)
+    // J'ai enlevé les marques génériques pour ne pas voler les accessoires
+    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI 15", "X5C", "HONOR X5", "A15", "A25", "A35", "A55"];
+
+    // 3. Sécurité : Mots qui font qu'un produit n'est JAMAIS un téléphone
     const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER"];
+
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
@@ -47,15 +53,7 @@ export default function MobileDashboard({ config }) {
         const d = new Date();
         return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
     };
-    const parseFrenchDate = (dateStr) => {
-        if(!dateStr) return null;
-        // Format attendu: JJ/MM/AAAA
-        const parts = dateStr.split('/');
-        if(parts.length === 3) return parts.join('/');
-        return null; // ou gérer d'autres formats
-    };
 
-    // Calcul de l'atterrissage
     const daysInMonth = () => new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
     const currentDay = () => new Date().getDate();
     const calculateLanding = (currentValue) => {
@@ -90,28 +88,21 @@ export default function MobileDashboard({ config }) {
         config.team.trim().split('\n').forEach(line => { if(line.includes(':')) { const [c, n] = line.split(':'); teamMap[c.trim()] = n.trim(); }});
         const teamCodes = Object.keys(teamMap);
 
-        // Init Stats (Mois & Jour)
         let tempStatsMonth = {}, tempStatsDay = {};
         teamCodes.forEach(code => {
             tempStatsMonth[code] = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0, Cyber:0, MP:0, Assurance:0, REC:0, CA:0, details: [] };
             tempStatsDay[code] = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0, Cyber:0, MP:0, Assurance:0, REC:0, CA:0, details: [] };
         });
 
-        // Variables Globales
         let g_Realise=0, g_CA=0, g_Term=0, g_Assur=0;
         let globalCounts = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0 };
 
-        // Big Win Init
         let highestSale = { amount: 0, seller: "", item: "" };
         const todayStr = getTodayStr();
 
         data.forEach(row => {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
-
-            // Detection Date (Champs possibles : Date, Date de pièce, Date Facture...)
             let rowDate = cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"];
-            // Si pas de date, on assume que c'est aujourd'hui pour être sûr de l'afficher, ou on ignore.
-            // Pour la sécurité, si pas de date, on compte dans le MOIS mais pas JOUR (sauf si forcé).
             let isToday = rowDate && rowDate.includes(todayStr);
 
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
@@ -125,42 +116,40 @@ export default function MobileDashboard({ config }) {
 
                 if (libClean.startsWith("WP")) return;
 
-                // Fonction d'incrémentation (Met à jour Mois ET Jour si isToday)
                 const updateStats = (cat, label, isCa = false, amount = 0) => {
-                    // Mois
-                    if(isCa) { tempStatsMonth[v].CA += amount; }
-                    else { tempStatsMonth[v][cat]++; }
+                    if(isCa) { tempStatsMonth[v].CA += amount; } else { tempStatsMonth[v][cat]++; }
                     if(label) tempStatsMonth[v].details.push(label);
 
-                    // Jour
                     if(isToday) {
-                        if(isCa) { tempStatsDay[v].CA += amount; }
-                        else { tempStatsDay[v][cat]++; }
+                        if(isCa) { tempStatsDay[v].CA += amount; } else { tempStatsDay[v][cat]++; }
                         if(label) tempStatsDay[v].details.push(label);
                     }
 
-                    // Global Month Counts
-                    if(!isCa) { globalCounts[cat]++; }
-                    else { g_CA += amount; }
+                    if(!isCa) { globalCounts[cat]++; } else { g_CA += amount; }
                 };
 
-                // --- BIG WIN CHECK (Uniquement sur CA Valide et Aujourd'hui) ---
                 if (isToday && caVal > highestSale.amount && !EXCLUDED_PRICES.includes(caVal)) {
                     highestSale = { amount: caVal, seller: teamMap[v], item: libClean };
                 }
 
-                // --- LOGIQUE METIER ---
+                // --- LOGIQUE CORRIGÉE ---
+                // 1. Stockage standard (128 GO...)
                 let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
-                let hasBrand = KEY_MARQUES.some(k => libClean.includes(k));
+
+                // 2. Modèles SPÉCIFIQUES (Seulement 15C, X5C, etc.) -> PLUS DE MARQUES GÉNÉRIQUES
+                let hasSpecificModel = KEY_MODELE.some(k => libClean.includes(k));
+
+                // 3. Sécurité Mots Interdits
                 let isAccessoryKeyword = KEY_NOT_TERM.some(k => libClean.includes(k));
-                let isTerm = (hasStorage || hasBrand) && !isAccessoryKeyword;
+
+                let isTerm = (hasStorage || hasSpecificModel) && !isAccessoryKeyword;
 
                 if (isTerm) {
                     updateStats('Terminaux', null); g_Term++;
                     if (KEY_REC.some(k => libClean.includes(k))) {
                         tempStatsMonth[v].REC++;
                         if(isToday) tempStatsDay[v].REC++;
-                        updateStats('Terminaux', "♻️ " + libClean); // Juste pour le détail
+                        updateStats('Terminaux', "♻️ " + libClean);
                     } else {
                         updateStats('Terminaux', "📱 " + libClean);
                     }
@@ -169,6 +158,7 @@ export default function MobileDashboard({ config }) {
                         if(isToday) tempStatsDay[v].Google++;
                     }
                 } else {
+                    // C'est un Accessoire (ou autre)
                     if (!BLACKLIST_CA.some(w => libClean.includes(w)) && !EXCLUDED_PRICES.includes(caVal)) {
                         let caHT = caVal / 1.2;
                         if (caVal !== 0) {
@@ -191,7 +181,6 @@ export default function MobileDashboard({ config }) {
             }
         });
 
-        // Set Globals
         let g_ObjTotal = 0;
         ['Broadband', 'Mobile', 'MIG', 'MEV', 'Terminaux', 'Cyber', 'MP'].forEach(k => { g_Realise += globalCounts[k]; g_ObjTotal += (config.objectifs[k]); });
 
@@ -206,9 +195,7 @@ export default function MobileDashboard({ config }) {
     };
 
     const openComparison = (category) => {
-        // On utilise les stats du mode actuel (Mois ou Jour)
         const activeStats = viewMode === 'month' ? statsMonth : statsDay;
-
         const sortedData = Object.keys(activeStats).map(code => {
             let name = "Inconnu";
             config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
@@ -234,7 +221,6 @@ export default function MobileDashboard({ config }) {
 
     if (loading) return <div className="loading-screen"><div className="loader"></div><p>Analyse...</p></div>;
 
-    // SÉLECTION DES DONNÉES À AFFICHER SELON LE MODE
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
     const nbVendeurs = sortedTeamCodes.length;
@@ -252,7 +238,6 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* BIG WIN CARD (RECORD DU JOUR) */}
         {bigWin && viewMode === 'day' && (
             <div className="big-win-card slide-in">
             <div className="bw-icon">🏆</div>
@@ -264,7 +249,6 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        {/* TOGGLE SWITCH MOIS / JOUR */}
         <div className="toggle-container">
         <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}>
         <Clock size={14} /> Aujourd'hui
@@ -278,18 +262,9 @@ export default function MobileDashboard({ config }) {
         <div className="section-label">🎯 {viewMode === 'month' ? 'OBJECTIFS MENSUELS' : 'VENTES DU JOUR'}</div>
         <div className="global-scroll">
 
-        <div
-        className="stat-card featured pulse-effect"
-        style={{cursor: 'pointer'}}
-        onClick={() => openComparison('TxAssur')}
-        >
+        <div className="stat-card featured pulse-effect" style={{cursor: 'pointer'}} onClick={() => openComparison('TxAssur')}>
         <div className="circular-wrap">
-        <CircularProgressbar
-        value={globalData.assur}
-        maxValue={100}
-        text={`${globalData.assur}%`}
-        styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })}
-        />
+        <CircularProgressbar value={globalData.assur} maxValue={100} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })} />
         </div>
         <div className="card-label" style={{color:'rgba(255,255,255,0.9)'}}>
         Taux Assur <BarChart2 size={12} style={{opacity:0.8, marginLeft:5}}/>
@@ -298,10 +273,8 @@ export default function MobileDashboard({ config }) {
 
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
-            // En mode JOUR, on affiche juste le réalisé du jour (pas de comparaison cible mensuelle pertinente ici)
             const current = viewMode === 'month' ? globalData.counts[key] : Object.values(statsDay).reduce((acc, s) => acc + s[key], 0);
             const target = config.objectifs[key];
-            // En mode jour, la barre de progression se base sur un prorata journalier (target / 25 jours ouvrés approx)
             const dayTarget = Math.round(target / 25) || 1;
             const pct = Math.min(100, Math.round((current / (viewMode === 'month' ? target : dayTarget)) * 100));
 
@@ -326,7 +299,6 @@ export default function MobileDashboard({ config }) {
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
             const s = currentStats[code];
-            // Si mode jour et CA = 0, on n'affiche pas (optionnel, mais plus propre)
             if (viewMode === 'day' && s.CA === 0 && s.Terminaux === 0 && s.Mobile === 0) return null;
 
             let name = "Inconnu";
@@ -373,8 +345,6 @@ export default function MobileDashboard({ config }) {
             <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
             </div>
             <div className="modal-scroll">
-
-            {/* NOUVEAU : PROJECTION ATTERRISSAGE (Uniquement en mode MOIS) */}
             {viewMode === 'month' && (
                 <div className="projection-banner">
                 🔮 Atterrissage estimé :
@@ -387,9 +357,7 @@ export default function MobileDashboard({ config }) {
             {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
                 const indivTarget = Math.ceil(config.objectifs[key] / nbVendeurs);
                 const current = selectedSeller.data[key];
-                // Projection pour les items aussi
                 const landing = calculateLanding(current);
-
                 const done = current >= indivTarget;
                 const style = getCategoryStyle(key);
 
@@ -404,11 +372,9 @@ export default function MobileDashboard({ config }) {
                     <strong>{current}</strong>
                     {viewMode === 'month' && <span className="target-mini"> / {indivTarget}</span>}
                     </div>
-                    {/* Barre de progression vs Objectif (Mois) ou Pace (Jour) */}
                     <div className="mini-prog-track">
                     <div className="mini-prog-fill" style={{width: `${Math.min(100, (current/indivTarget)*100)}%`, background: done ? '#32C832' : style.grad}}></div>
                     </div>
-                    {/* Petit badge Atterrissage */}
                     {viewMode === 'month' && current < indivTarget && (
                         <div className="landing-mini" style={{color: landing >= indivTarget ? '#32C832' : '#FF7900'}}>
                         Att: {landing}
