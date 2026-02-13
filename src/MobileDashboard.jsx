@@ -42,7 +42,7 @@ export default function MobileDashboard({ config }) {
     const KEY_MODELE = ["L30", "WIRE"];
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
 
-    // ⛔ LISTE NOIRE MISE À JOUR
+    // ⛔ LISTE NOIRE MISE À JOUR (AVEC E-RECH)
     const BLACKLIST_CA = [
         "DORO", "HINTO",               // Seniors
         "FIXE", "DECT", "GIGASET",     // Fixes
@@ -53,7 +53,8 @@ export default function MobileDashboard({ config }) {
         "FLASH", "EXPERTE",            // Services suite
         "TIMBRE",                      // Fiscalité
         "PLANCHE", "PHOTO", "IDENTITE",// Photos d'identité
-        "RECHARGE", "MOBICARTE"        // Recharges prépayées
+        "RECHARGE", "MOBICARTE",       // Recharges prépayées
+        "E-RECH"                       // Recharges électroniques
     ];
 
     const EXCLUDED_PRICES = [9, 24, 39];
