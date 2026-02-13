@@ -85,8 +85,6 @@ export default function MobileDashboard({ config }) {
                 } else {
                     if (!BLACKLIST_CA.some(w => libClean.includes(w)) && !EXCLUDED_PRICES.includes(caVal)) {
                         let caHT = caVal / 1.2; tempStats[v].CA += caHT; g_CA += caHT;
-
-                        // CORRECTION ICI : On affiche même si négatif (remboursement)
                         if (caVal !== 0) {
                             const icon = caVal > 0 ? "🛒" : "↩️";
                             addItem(`${icon} ${libClean} (${Math.round(caHT)}€)`);
@@ -110,16 +108,27 @@ export default function MobileDashboard({ config }) {
         if(g_ObjTotal > 0 && (g_Realise/g_ObjTotal) > 0.8) confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
     };
 
+    // --- FONCTION DE COMPARAISON AVANCÉE (Gère les taux) ---
     const openComparison = (category) => {
         const sortedData = Object.keys(stats).map(code => {
             let name = "Inconnu";
             config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
-            return { name, val: stats[code][category], isMe: code === selectedSeller.code };
+
+            // Calcul Spécial pour le Taux d'Assurance
+            let val = 0;
+            if (category === 'TxAssur') {
+                const s = stats[code];
+                val = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0;
+            } else {
+                val = stats[code][category];
+            }
+
+            return { name, val, isMe: selectedSeller ? code === selectedSeller.code : false };
         }).sort((a, b) => b.val - a.val);
-        setCompareMode({ category, data: sortedData });
+
+        setCompareMode({ category: category === 'TxAssur' ? 'Taux Assurance' : category, data: sortedData, isPercent: category === 'TxAssur' });
     };
 
-    // --- FONCTION DE TRI DES VENTES (Mise à jour pour inclure les retours) ---
     const getGroupedSales = (details) => {
         const groups = {
             '📱 Mobiles & Terminaux': [],
@@ -160,12 +169,19 @@ export default function MobileDashboard({ config }) {
         </div>
         <div className="card-label">Global</div>
         </div>
-        <div className="stat-card" style={{background: 'linear-gradient(135deg, #ffffff, #f0f0f0)'}}>
+
+        {/* TUILE ASSURANCE CLIQUABLE */}
+        <div
+        className="stat-card"
+        style={{background: 'linear-gradient(135deg, #ffffff, #f0f0f0)', cursor: 'pointer'}}
+        onClick={() => openComparison('TxAssur')}
+        >
         <div className="circular-wrap small">
         <CircularProgressbar value={globalData.assur} maxValue={100} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: globalData.assur >= 42 ? '#32C832' : '#CD3C14', textColor: '#333' })} />
         </div>
-        <div className="card-label">Assur</div>
+        <div className="card-label">Taux Assur <BarChart2 size={10} style={{opacity:0.5}}/></div>
         </div>
+
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
             const current = globalData.counts[key];
@@ -290,7 +306,8 @@ export default function MobileDashboard({ config }) {
             <div style={{height: '300px', width: '100%'}}>
             <Bar
             data={{
-                labels: compareMode.data.map(d => `${d.name} (${d.val})`),
+                // Affiche "Nom (12%)" si c'est un taux, sinon "Nom (12)"
+                labels: compareMode.data.map(d => `${d.name} (${d.val}${compareMode.isPercent ? '%' : ''})`),
                          datasets: [{
                              data: compareMode.data.map(d => d.val),
                          backgroundColor: compareMode.data.map(d => d.isMe ? '#FF7900' : '#E0E0E0'),
