@@ -1,62 +1,77 @@
 import React, { useEffect, useState } from 'react';
 import Papa from 'papaparse';
 import confetti from 'canvas-confetti';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
+import { Smartphone, Wifi, Shield, Zap, Home, Activity, ChevronRight, X, TrendingUp, AlertTriangle } from 'lucide-react';
 
-// Enregistrement des composants Chart.js
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
-export default function MobileDashboard({ config, onBack }) {
+export default function MobileDashboard({ config }) {
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [stats, setStats] = useState({});
     const [globalData, setGlobalData] = useState({});
-    const [selectedSeller, setSelectedSeller] = useState(null); // Pour la modale détail
-    const [chartData, setChartData] = useState(null); // Pour la modale graphique
+    const [selectedSeller, setSelectedSeller] = useState(null);
 
-    // Codes articles (Ta logique métier)
+    // --- 1. LA LOGIQUE EXACTE DU FICHIER HTML ORIGINEL ---
     const CODES = {
         Broadband: [804284, 805275, 804900, 804285, 804286, 804288, 804540, 804541, 804901, 805111, 805230],
         Mobile: [805315, 805311, 805307, 805278, 805277, 805276, 805261, 805260, 805259, 805234, 805233, 805232, 805110, 805104, 805103, 805102, 805081, 805070, 805068, 805064, 805063, 805062, 805061, 805055, 805002, 805001, 805000, 804996, 804995, 804994, 804287, 804285, 804283, 804982, 804827, 804826, 804266, 804210],
         MIG: [805226, 805228, 805227, 804608, 805243, 805242, 805235, 805241, 804610, 805225, 805224, 805223],
-        MEV: [801692], MP: [804411, 804410], Cyber: [805159],
+        MEV: [801692],
+        MP: [804411, 804410],
+        Cyber: [805159],
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
+    };
+    const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO"];
+    const KEY_MODELE = ["L30", "WIRE"];
+    const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
+    const EXCLUDED_CA = [9, 24, 39];
+
+    // --- 2. STYLE VISUEL (MODERNE) ---
+    const getCategoryStyle = (cat) => {
+        switch(cat) {
+            case 'Terminaux': return { icon: <Smartphone size={18} />, color: '#000', label: 'Terminaux' };
+            case 'Mobile': return { icon: <Activity size={18} />, color: '#FF7900', label: 'Mobile' };
+            case 'Broadband': return { icon: <Wifi size={18} />, color: '#527EDB', label: 'Broadband' };
+            case 'MIG': return { icon: <Zap size={18} />, color: '#FFCC00', label: 'MIG' };
+            case 'MEV': return { icon: <TrendingUp size={18} />, color: '#856404', label: 'MEV' };
+            case 'Cyber': return { icon: <Shield size={18} />, color: '#6f42c1', label: 'Cyber' };
+            case 'MP': return { icon: <Home size={18} />, color: '#32C832', label: 'Maison P.' };
+            case 'Assurance': return { icon: <Shield size={18} />, color: '#32C832', label: 'Assur' };
+            default: return { icon: <AlertTriangle size={18} />, color: '#999', label: cat };
+        }
     };
 
     useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = () => {
         const t = new Date().getTime();
-        const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
+        // Utilisation de corsproxy pour éviter les erreurs Google Sheet
+        const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
 
-        fetch(proxyUrl)
-        .then(r => {
-            if (!r.ok) throw new Error("Erreur Proxy");
-            return r.text();
-        })
+        fetch(finalUrl)
+        .then(r => r.text())
         .then(csvText => {
             Papa.parse(csvText, {
                 header: true,
                 skipEmptyLines: true,
-                complete: (results) => processData(results.data),
-                       error: (err) => setError("Erreur Parsing CSV")
+                complete: (results) => processData(results.data)
             });
         })
-        .catch(err => {
-            console.error(err);
-            setError("Erreur Réseau : Vérifiez le lien Google Sheet");
-            setLoading(false);
-        });
-    };
+        .catch(err => console.error("Erreur Fetch:", err));
+    }, []);
 
     const processData = (data) => {
-        let tempStats = {};
-        const teamCodes = Object.keys(config.team);
+        // Préparation de la liste vendeurs
+        let teamMap = {};
+        const teamLines = config.team.trim().split('\n');
+        teamLines.forEach(line => {
+            if(line.includes(':')) {
+                const [code, name] = line.split(':');
+                teamMap[code.trim()] = name.trim();
+            }
+        });
+        const teamCodes = Object.keys(teamMap);
 
-        // Init stats
+        // Init Stats Vendeurs
+        let tempStats = {};
         teamCodes.forEach(code => {
             tempStats[code] = {
                 Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0,
@@ -64,190 +79,237 @@ export default function MobileDashboard({ config, onBack }) {
             };
         });
 
+        // Variables Globales
         let g_Realise = 0, g_CA = 0, g_Term = 0, g_Assur = 0;
+        let globalCounts = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0 };
 
+        // --- BOUCLE DE TRAITEMENT (IDENTIQUE HTML) ---
         data.forEach(row => {
-            // Nettoyage des clés (parfois des espaces traînent dans le CSV)
-            let cleanRow = {};
-            Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
+            // Nettoyage ligne
+            let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
 
+            // Recherche Vendeur
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
             let v = teamCodes.find(code => vRaw.includes(code));
 
             if (v) {
                 let codeArt = parseInt(cleanRow["Code Article"]);
-                let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase();
-                // Nettoyage montant (1 200,00 € -> 1200.00)
+                let rawLib = (cleanRow["Libellé Article"] || "").toString().toUpperCase();
+                let libClean = rawLib.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+
+                // Nettoyage Montant
                 let caStr = (cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.');
                 let caVal = parseFloat(caStr) || 0;
 
-                // Logique Métier
-                if (lib.startsWith("WP")) return;
+                if (libClean.startsWith("WP")) return;
 
                 const addItem = (label) => tempStats[v].details.push(label);
+                const inc = (cat) => { tempStats[v][cat]++; globalCounts[cat]++; };
 
-                // Détection Terminaux
-                const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO"];
-                let hasStorage = KEY_STOCKAGE.some(k => lib.includes(k));
-                let isTerminal = (hasStorage || ["L30", "WIRE"].some(k => lib.includes(k)));
+                // LOGIQUE DETECTION PRODUIT
+                let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
+                let isTerminal = (hasStorage || KEY_MODELE.some(k => libClean.includes(k)));
 
                 if (isTerminal) {
-                    tempStats[v].Terminaux++;
-                    g_Term++;
-                    if (["REC", "RECOND", "RENEWD", "OCCASION"].some(k => lib.includes(k))) {
-                        tempStats[v].REC++;
-                        addItem("♻️ " + lib);
-                    } else {
-                        addItem("📱 " + lib);
+                    inc('Terminaux'); g_Term++;
+                    let isRec = KEY_REC.some(k => libClean.includes(k));
+                    if (isRec) { tempStats[v].REC++; addItem("♻️ " + libClean); }
+                    else { addItem("📱 " + libClean); }
+
+                    if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL")) && hasStorage) {
+                        tempStats[v].Google++;
                     }
-                    if ((lib.includes("GOOGLE") || lib.includes("PIXEL")) && hasStorage) tempStats[v].Google++;
                 } else {
-                    // Accessoires & Services
-                    if (![9, 24, 39].includes(caVal)) { // Exclusions CA
-                        tempStats[v].CA += caVal;
-                        g_CA += caVal;
-                        if (caVal > 0) addItem("🛒 " + lib);
+                    if (!EXCLUDED_CA.includes(caVal)) {
+                        tempStats[v].CA += caVal; g_CA += caVal;
+                        if (caVal > 0) addItem("🛒 " + libClean);
                     }
                 }
 
-                // Catégories par codes
-                if (CODES.Broadband.includes(codeArt)) { tempStats[v].Broadband++; addItem("🌐 Box: " + lib); }
-                else if (CODES.Mobile.includes(codeArt)) { tempStats[v].Mobile++; addItem("SIM: " + lib); }
-                else if (CODES.MIG.includes(codeArt)) { tempStats[v].MIG++; addItem("MIG: " + lib); }
-                else if (CODES.MEV.includes(codeArt)) { tempStats[v].MEV++; addItem("MEV: " + lib); }
-                else if (CODES.MP.includes(codeArt)) { tempStats[v].MP++; addItem("🏠 MP: " + lib); }
-                else if (CODES.Cyber.includes(codeArt)) { tempStats[v].Cyber++; addItem("🛡️ Cyber: " + lib); }
+                // CHECK CODES EXACTS
+                if (CODES.Broadband.includes(codeArt)) { inc('Broadband'); addItem("🌐 " + libClean); }
+                else if (CODES.Mobile.includes(codeArt)) { inc('Mobile'); addItem("Sim " + libClean); }
+                else if (CODES.MIG.includes(codeArt)) { inc('MIG'); addItem("⚡ " + libClean); }
+                else if (CODES.MEV.includes(codeArt)) { inc('MEV'); addItem("🔧 " + libClean); }
+                else if (CODES.MP.includes(codeArt)) { inc('MP'); addItem("🏠 " + libClean); }
+                else if (CODES.Cyber.includes(codeArt)) { inc('Cyber'); addItem("🛡️ " + libClean); }
                 else if (CODES.Assurance.includes(codeArt)) {
-                    tempStats[v].Assurance++;
-                    g_Assur++;
-                    addItem("🛡️ Assur: " + lib);
+                    tempStats[v].Assurance++; globalCounts.Assurance++; g_Assur++;
+                    addItem("🛡️ Assur: " + libClean);
                 }
             }
         });
 
-        // Calcul Global
-        let totalObj = 0;
-        Object.values(config.objectifs).forEach(val => totalObj += (val * teamCodes.length));
+        // CALCUL DES OBJECTIFS
+        let g_ObjTotal = 0;
+        const nbVendeurs = teamCodes.length;
 
-        teamCodes.forEach(c => {
-            Object.keys(config.objectifs).forEach(k => {
-                if(k !== 'MP' && k !== 'Cyber') g_Realise += tempStats[c][k];
-            });
+        // Calcul du réalisé global pour le % d'avancement
+        // On exclut Assurance et MP du calcul de volume global si besoin, ici on additionne tout ce qui est volume
+        ['Broadband', 'Mobile', 'MIG', 'MEV', 'Terminaux', 'Cyber', 'MP'].forEach(k => {
+            g_Realise += globalCounts[k];
+            g_ObjTotal += (config.objectifs[k]); // Total boutique direct depuis config
         });
-
-        const pct = totalObj > 0 ? Math.round((g_Realise / totalObj) * 100) : 0;
 
         setGlobalData({
             ca: g_CA,
-            pct: pct,
-            assur: g_Term > 0 ? Math.round((g_Assur / g_Term) * 100) : 0,
+            pct: g_ObjTotal > 0 ? Math.round((g_Realise / g_ObjTotal) * 100) : 0,
+                      assur: g_Term > 0 ? Math.round((g_Assur / g_Term) * 100) : 0,
+                      counts: globalCounts,
                       term: g_Term,
-                      termObj: config.globalTerm
+                      termObj: config.objectifs.Terminaux
         });
 
         setStats(tempStats);
         setLoading(false);
-
-        if (pct >= 80) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        if(g_ObjTotal > 0 && (g_Realise / g_ObjTotal) > 0.8) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     };
 
-    // --- UI HELPERS ---
-    const getSortedTeam = () => {
-        return Object.keys(stats).sort((a, b) => stats[b].CA - stats[a].CA);
-    };
+    if (loading) return <div className="loading-screen">🍊 Chargement...</div>;
 
-    if (loading) return <div className="loading-screen">🍊 Chargement des données...</div>;
-    if (error) return <div className="error-screen">⚠️ {error} <button onClick={onBack}>Retour</button></div>;
+    // Tri des vendeurs par CA
+    const sortedTeamCodes = Object.keys(stats).sort((a, b) => stats[b].CA - stats[a].CA);
+    const nbVendeurs = sortedTeamCodes.length;
 
     return (
-        <div className="mobile-dashboard">
+        <div className="modern-dashboard">
         {/* HEADER */}
-        <header className="dash-header">
-        <div className="brand">Orange <span>Perf</span></div>
-        <button onClick={onBack} className="btn-back">⚙️ Config</button>
-        </header>
-
-        {/* KPI GRID */}
-        <div className="kpi-grid">
-        <div className="kpi-card">
-        <div className="kpi-title">CA ACCESSOIRES</div>
-        <div className="kpi-value">{Math.round(globalData.ca).toLocaleString()} €</div>
+        <div className="header-glass">
+        <div>
+        <div className="subtitle">Suivi Mensuel</div>
+        <div className="title">Orange <span>Perf</span></div>
         </div>
-        <div className="kpi-card">
-        <div className="kpi-title">AVANCEMENT</div>
-        <div className="kpi-value" style={{color: globalData.pct >= 80 ? '#32C832' : '#000'}}>
-        {globalData.pct}%
-        </div>
-        </div>
-        <div className="kpi-card">
-        <div className="kpi-title">TAUX ASSUR</div>
-        <div className="kpi-value">{globalData.assur}%</div>
-        <div className="kpi-sub" style={{color: globalData.assur >= 42 ? 'green' : 'red'}}>Obj {'>'} 42%</div>
-        </div>
-        <div className="kpi-card">
-        <div className="kpi-title">TERMINAUX</div>
-        <div className="kpi-value">{globalData.term}</div>
-        <div className="kpi-sub">/ {globalData.termObj}</div>
-        </div>
+        <div className="ca-badge">{Math.round(globalData.ca).toLocaleString()} €</div>
         </div>
 
-        {/* LISTE VENDEURS */}
-        <div className="team-section">
-        <div className="section-title">CLASSEMENT ÉQUIPE (CA ACC.)</div>
-        {getSortedTeam().map((code, index) => {
-            const s = stats[code];
-            const name = config.team[code];
+        <div className="scroll-content">
+
+        {/* GLOBAL SCROLL */}
+        <div className="section-label">GLOBAL BOUTIQUE</div>
+        <div className="global-scroll">
+        <div className="stat-card featured">
+        <div className="circular-wrap">
+        <CircularProgressbar
+        value={globalData.pct} text={`${globalData.pct}%`}
+        styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.2)' })}
+        />
+        </div>
+        <div className="card-label">Avancement</div>
+        </div>
+
+        <div className="stat-card">
+        <div className="circular-wrap small">
+        <CircularProgressbar
+        value={globalData.assur} maxValue={100} text={`${globalData.assur}%`}
+        styles={buildStyles({ pathColor: globalData.assur >= 42 ? '#32C832' : '#CD3C14', textColor: '#333' })}
+        />
+        </div>
+        <div className="card-label">Taux Assur</div>
+        </div>
+
+        {/* BOUCLE SUR LES CLES DE CONFIG (Sauf Assurance qui est déjà affichée) */}
+        {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
+            const style = getCategoryStyle(key);
+            const current = globalData.counts[key];
+            const target = config.objectifs[key];
+            const pct = Math.min(100, Math.round((current / target) * 100));
+
             return (
-                <div key={code} className="collab-row" onClick={() => setSelectedSeller({code, name, data: s})}>
-                <div className="collab-left">
-                <div className="rank">#{index + 1}</div>
-                <div className="avatar">{name[0]}</div>
-                <div className="collab-name">{name}</div>
+                <div key={key} className="stat-card">
+                <div className="icon-badge" style={{color: style.color, background: `${style.color}20`}}>
+                {style.icon}
                 </div>
-                <div className="collab-right">
-                <div className="collab-val">{Math.round(s.CA).toLocaleString()} €</div>
-                <div className="chevron">›</div>
+                <div className="stat-value">{current} <span className="stat-target">/ {target}</span></div>
+                <div className="progress-bar-mini">
+                <div className="fill" style={{width: `${pct}%`, background: style.color}}></div>
                 </div>
+                <div className="card-label">{style.label}</div>
                 </div>
             )
         })}
         </div>
 
-        {/* MODAL DETAIL (Si un vendeur est cliqué) */}
+        {/* LEADERBOARD */}
+        <div className="section-label" style={{marginTop:'20px'}}>CLASSEMENT ÉQUIPE</div>
+        <div className="team-list">
+        {sortedTeamCodes.map((code, index) => {
+            const s = stats[code];
+            // Récupération du Nom via le config.team parsé
+            let name = "Inconnu";
+            config.team.split('\n').forEach(line => {
+                if(line.includes(code)) name = line.split(':')[1].trim();
+            });
+
+                const isTop3 = index < 3;
+                const txAssur = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux)*100) : 0;
+
+                return (
+                    <div key={code} className="seller-card" onClick={() => setSelectedSeller({code, name, data: s})}>
+                    <div className="seller-rank">{index + 1}</div>
+                    <div className={`seller-avatar ${isTop3 ? 'glow' : ''}`}>
+                    {isTop3 && <div className="crown">👑</div>}
+                    {name[0]}
+                    </div>
+                    <div className="seller-info">
+                    <div className="seller-name">{name}</div>
+                    <div className="seller-kpi-row">
+                    <span className="tag-kpi">📱 {s.Terminaux}</span>
+                    <span className="tag-kpi" style={{color: txAssur >= 42 ? 'green' : 'red'}}>🛡️ {txAssur}%</span>
+                    </div>
+                    </div>
+                    <div className="seller-ca">
+                    {Math.round(s.CA).toLocaleString()} €
+                    <ChevronRight size={16} color="#ccc" />
+                    </div>
+                    </div>
+                )
+        })}
+        </div>
+        </div>
+
+        {/* MODAL DETAIL */}
         {selectedSeller && (
-            <div className="modal-overlay" onClick={() => setSelectedSeller(null)}>
-            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="sheet-header">
+            <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
+            <div className="glass-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+            <div className="modal-avatar">{selectedSeller.name[0]}</div>
+            <div className="modal-title">
             <h2>{selectedSeller.name}</h2>
-            <button className="close-icon" onClick={() => setSelectedSeller(null)}>×</button>
+            <p>Objectifs Individuels</p>
+            </div>
+            <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
             </div>
 
-            {/* OBJECTIFS INDIVIDUELS */}
-            <div className="objectives-list">
-            <h3>🎯 Objectifs Restants</h3>
-            {Object.keys(config.objectifs).map(key => {
-                const reste = config.objectifs[key] - selectedSeller.data[key];
-                if (reste <= 0) return null;
+            <div className="modal-scroll">
+            <div className="obj-grid">
+            {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
+                // CALCUL OBJECTIF INDIVIDUEL (Global / Nb Vendeurs)
+                const indivTarget = Math.ceil(config.objectifs[key] / nbVendeurs);
+                const current = selectedSeller.data[key];
+                const done = current >= indivTarget;
+                const style = getCategoryStyle(key);
+
                 return (
-                    <div key={key} className="obj-item">
-                    <span>{key}</span>
-                    <strong>{reste}</strong>
+                    <div key={key} className={`obj-pill ${done ? 'done' : ''}`}>
+                    <div className="pill-icon" style={{color: style.color}}>{style.icon}</div>
+                    <div className="pill-info">
+                    <div className="pill-label">{style.label}</div>
+                    <div className="pill-val">
+                    <strong>{current}</strong> / {indivTarget}
+                    </div>
+                    </div>
+                    {done && <div className="check-mark">✔</div>}
                     </div>
                 )
             })}
-            {Object.keys(config.objectifs).every(k => config.objectifs[k] - selectedSeller.data[k] <= 0) &&
-                <div className="success-msg">✨ Tous les objectifs sont atteints !</div>
-            }
             </div>
 
-            {/* INVENTAIRE / DETAILS */}
-            <div className="inventory-list">
-            <h3>📦 Détail des ventes</h3>
-            {selectedSeller.data.details.length === 0 ? <p>Aucune vente.</p> :
-                selectedSeller.data.details.map((item, i) => (
-                    <div key={i} className="inv-item">{item}</div>
-                ))
-            }
+            <h3>Détails Ventes</h3>
+            <div className="history-list">
+            {selectedSeller.data.details.map((item, i) => (
+                <div key={i} className="history-item">{item}</div>
+            ))}
+            </div>
             </div>
             </div>
             </div>
