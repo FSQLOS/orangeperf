@@ -3,17 +3,32 @@ import Papa from 'papaparse';
 import confetti from 'canvas-confetti';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { Smartphone, Wifi, Shield, Zap, Home, Activity, ChevronRight, X, TrendingUp, AlertTriangle } from 'lucide-react';
+import {
+    Smartphone, Wifi, Shield, Zap, Home, Activity,
+    ChevronRight, X, TrendingUp, AlertTriangle, BarChart2
+} from 'lucide-react';
+import { Bar } from 'react-chartjs-2';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+} from 'chart.js';
+
+// Enregistrement des composants graphiques
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function MobileDashboard({ config }) {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({});
     const [globalData, setGlobalData] = useState({});
     const [selectedSeller, setSelectedSeller] = useState(null);
+    const [compareMode, setCompareMode] = useState(null); // Pour le graphique
 
-    // --- 1. CONFIGURATION TECHNIQUE ---
-
-    // Codes produits fixes (Box, etc.)
+    // --- CONFIG TECHNIQUE ---
     const CODES = {
         Broadband: [804284, 805275, 804900, 804285, 804286, 804288, 804540, 804541, 804901, 805111, 805230],
         Mobile: [805315, 805311, 805307, 805278, 805277, 805276, 805261, 805260, 805259, 805234, 805233, 805232, 805110, 805104, 805103, 805102, 805081, 805070, 805068, 805064, 805063, 805062, 805061, 805055, 805002, 805001, 805000, 804996, 804995, 804994, 804287, 804285, 804283, 804982, 804827, 804826, 804266, 804210],
@@ -23,28 +38,13 @@ export default function MobileDashboard({ config }) {
         Cyber: [805159],
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
-
-    // Mots-clés pour détecter les Smartphones
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO"];
     const KEY_MODELE = ["L30", "WIRE"];
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
-
-    // ⛔ LISTE NOIRE : Mots-clés à bannir du CA Accessoires
-    const BLACKLIST_CA = [
-        "DORO", "HINTO",               // Seniors
-        "FIXE", "DECT", "GIGASET",     // Fixes
-        "PARAFOUDRE", "MULTIPRISE",    // Élec
-        "PILE",                        // Énergie
-        "SAC", "KRAFT",                // Packaging
-        "CONFIGURATION", "ATELIER",    // Services
-        "FLASH", "EXPERTE",            // Services suite
-        "TIMBRE"                       // Fiscalité
-    ];
-
-    // Prix exacts des services à exclure (sécurité supplémentaire)
+    const BLACKLIST_CA = ["DORO", "HINTO", "FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
-    // --- 2. STYLE VISUEL ---
+    // --- STYLE VISUEL ---
     const getCategoryStyle = (cat) => {
         switch(cat) {
             case 'Terminaux': return { icon: <Smartphone size={18} />, color: '#000', label: 'Terminaux' };
@@ -61,7 +61,6 @@ export default function MobileDashboard({ config }) {
 
     useEffect(() => {
         const t = new Date().getTime();
-        // Utilisation de corsproxy pour éviter les erreurs Google Sheet
         const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
 
         fetch(finalUrl)
@@ -77,7 +76,6 @@ export default function MobileDashboard({ config }) {
     }, []);
 
     const processData = (data) => {
-        // Préparation de la liste vendeurs
         let teamMap = {};
         const teamLines = config.team.trim().split('\n');
         teamLines.forEach(line => {
@@ -88,7 +86,6 @@ export default function MobileDashboard({ config }) {
         });
         const teamCodes = Object.keys(teamMap);
 
-        // Init Stats Vendeurs
         let tempStats = {};
         teamCodes.forEach(code => {
             tempStats[code] = {
@@ -97,15 +94,11 @@ export default function MobileDashboard({ config }) {
             };
         });
 
-        // Variables Globales
         let g_Realise = 0, g_CA = 0, g_Term = 0, g_Assur = 0;
         let globalCounts = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0 };
 
         data.forEach(row => {
-            // Nettoyage ligne
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
-
-            // Recherche Vendeur
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
             let v = teamCodes.find(code => vRaw.includes(code));
 
@@ -113,8 +106,6 @@ export default function MobileDashboard({ config }) {
                 let codeArt = parseInt(cleanRow["Code Article"]);
                 let rawLib = (cleanRow["Libellé Article"] || "").toString().toUpperCase();
                 let libClean = rawLib.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
-
-                // Nettoyage Montant
                 let caStr = (cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.');
                 let caVal = parseFloat(caStr) || 0;
 
@@ -123,7 +114,6 @@ export default function MobileDashboard({ config }) {
                 const addItem = (label) => tempStats[v].details.push(label);
                 const inc = (cat) => { tempStats[v][cat]++; globalCounts[cat]++; };
 
-                // 1. DETECTION SMARTPHONE
                 let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
                 let isTerminal = (hasStorage || KEY_MODELE.some(k => libClean.includes(k)));
 
@@ -132,26 +122,16 @@ export default function MobileDashboard({ config }) {
                     let isRec = KEY_REC.some(k => libClean.includes(k));
                     if (isRec) { tempStats[v].REC++; addItem("♻️ " + libClean); }
                     else { addItem("📱 " + libClean); }
-
-                    if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL")) && hasStorage) {
-                        tempStats[v].Google++;
-                    }
+                    if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL")) && hasStorage) tempStats[v].Google++;
                 } else {
-                    // 2. LOGIQUE CA ACCESSOIRES (AVEC FILTRE)
-
-                    // On vérifie si c'est un produit banni (Doro, Fixe, Pile, Config...)
                     const isBlacklisted = BLACKLIST_CA.some(word => libClean.includes(word));
-
-                    // On vérifie si c'est un prix de service interdit
                     const isExcludedPrice = EXCLUDED_PRICES.includes(caVal);
-
                     if (!isBlacklisted && !isExcludedPrice) {
                         tempStats[v].CA += caVal; g_CA += caVal;
                         if (caVal > 0) addItem("🛒 " + libClean);
                     }
                 }
 
-                // 3. CHECK AUTRES PRODUITS (Box, etc.)
                 if (CODES.Broadband.includes(codeArt)) { inc('Broadband'); addItem("🌐 " + libClean); }
                 else if (CODES.Mobile.includes(codeArt)) { inc('Mobile'); addItem("Sim " + libClean); }
                 else if (CODES.MIG.includes(codeArt)) { inc('MIG'); addItem("⚡ " + libClean); }
@@ -165,10 +145,7 @@ export default function MobileDashboard({ config }) {
             }
         });
 
-        // CALCUL DES OBJECTIFS
         let g_ObjTotal = 0;
-        const nbVendeurs = teamCodes.length;
-
         ['Broadband', 'Mobile', 'MIG', 'MEV', 'Terminaux', 'Cyber', 'MP'].forEach(k => {
             g_Realise += globalCounts[k];
             g_ObjTotal += (config.objectifs[k]);
@@ -178,14 +155,30 @@ export default function MobileDashboard({ config }) {
             ca: g_CA,
             pct: g_ObjTotal > 0 ? Math.round((g_Realise / g_ObjTotal) * 100) : 0,
                       assur: g_Term > 0 ? Math.round((g_Assur / g_Term) * 100) : 0,
-                      counts: globalCounts,
-                      term: g_Term,
-                      termObj: config.objectifs.Terminaux
+                      counts: globalCounts
         });
 
         setStats(tempStats);
         setLoading(false);
         if(g_ObjTotal > 0 && (g_Realise / g_ObjTotal) > 0.8) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    };
+
+    // --- FONCTION POUR OUVRIR LE GRAPHIQUE ---
+    const openComparison = (category) => {
+        // 1. Préparer les données pour le graphique
+        const sortedData = Object.keys(stats).map(code => {
+            let name = "Inconnu";
+            config.team.split('\n').forEach(line => {
+                if(line.includes(code)) name = line.split(':')[1].trim();
+            });
+                return {
+                    name: name,
+                    val: stats[code][category],
+                    isMe: code === selectedSeller.code
+                };
+        }).sort((a, b) => b.val - a.val);
+
+        setCompareMode({ category, data: sortedData });
     };
 
     if (loading) return <div className="loading-screen">🍊 Chargement...</div>;
@@ -204,6 +197,7 @@ export default function MobileDashboard({ config }) {
         </div>
 
         <div className="scroll-content">
+        {/* GLOBAL SCROLL */}
         <div className="section-label">GLOBAL BOUTIQUE</div>
         <div className="global-scroll">
         <div className="stat-card featured">
@@ -215,7 +209,7 @@ export default function MobileDashboard({ config }) {
         </div>
         <div className="card-label">Avancement</div>
         </div>
-
+        {/* ... Autres cartes globales (identique avant) ... */}
         <div className="stat-card">
         <div className="circular-wrap small">
         <CircularProgressbar
@@ -225,7 +219,6 @@ export default function MobileDashboard({ config }) {
         </div>
         <div className="card-label">Taux Assur</div>
         </div>
-
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
             const current = globalData.counts[key];
@@ -254,10 +247,8 @@ export default function MobileDashboard({ config }) {
             config.team.split('\n').forEach(line => {
                 if(line.includes(code)) name = line.split(':')[1].trim();
             });
-
                 const isTop3 = index < 3;
                 const txAssur = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux)*100) : 0;
-
                 return (
                     <div key={code} className="seller-card" onClick={() => setSelectedSeller({code, name, data: s})}>
                     <div className="seller-rank">{index + 1}</div>
@@ -272,16 +263,14 @@ export default function MobileDashboard({ config }) {
                     <span className="tag-kpi" style={{color: txAssur >= 42 ? 'green' : 'red'}}>🛡️ {txAssur}%</span>
                     </div>
                     </div>
-                    <div className="seller-ca">
-                    {Math.round(s.CA).toLocaleString()} €
-                    <ChevronRight size={16} color="#ccc" />
-                    </div>
+                    <div className="seller-ca">{Math.round(s.CA).toLocaleString()} € <ChevronRight size={16} color="#ccc" /></div>
                     </div>
                 )
         })}
         </div>
         </div>
 
+        {/* MODAL VENDEUR DETAIL */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal" onClick={e => e.stopPropagation()}>
@@ -289,7 +278,7 @@ export default function MobileDashboard({ config }) {
             <div className="modal-avatar">{selectedSeller.name[0]}</div>
             <div className="modal-title">
             <h2>{selectedSeller.name}</h2>
-            <p>Objectifs Individuels</p>
+            <p>Cliquez sur un item pour comparer</p>
             </div>
             <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
             </div>
@@ -301,27 +290,67 @@ export default function MobileDashboard({ config }) {
                 const current = selectedSeller.data[key];
                 const done = current >= indivTarget;
                 const style = getCategoryStyle(key);
+
                 return (
-                    <div key={key} className={`obj-pill ${done ? 'done' : ''}`}>
+                    <div
+                    key={key}
+                    className={`obj-pill ${done ? 'done' : ''}`}
+                    onClick={() => openComparison(key)}
+                    style={{cursor: 'pointer'}}
+                    >
                     <div className="pill-icon" style={{color: style.color}}>{style.icon}</div>
                     <div className="pill-info">
-                    <div className="pill-label">{style.label}</div>
-                    <div className="pill-val">
-                    <strong>{current}</strong> / {indivTarget}
-                    </div>
+                    <div className="pill-label">{style.label} <BarChart2 size={10} style={{marginLeft:5, opacity:0.5}}/></div>
+                    <div className="pill-val"><strong>{current}</strong> / {indivTarget}</div>
                     </div>
                     {done && <div className="check-mark">✔</div>}
                     </div>
                 )
             })}
             </div>
-
             <h3>Détails Ventes</h3>
             <div className="history-list">
             {selectedSeller.data.details.map((item, i) => (
                 <div key={i} className="history-item">{item}</div>
             ))}
             </div>
+            </div>
+            </div>
+            </div>
+        )}
+
+        {/* MODAL GRAPHIQUE COMPARATIF (Par dessus le détail) */}
+        {compareMode && (
+            <div className="glass-overlay" style={{zIndex: 200}} onClick={() => setCompareMode(null)}>
+            <div className="glass-modal" style={{height: '60vh'}} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+            <div className="modal-title">
+            <h2>Comparatif {compareMode.category}</h2>
+            <p>Classement de l'équipe</p>
+            </div>
+            <div className="close-btn" onClick={() => setCompareMode(null)}><X /></div>
+            </div>
+            <div style={{flex: 1, position: 'relative', width: '100%'}}>
+            <Bar
+            data={{
+                labels: compareMode.data.map(d => d.name),
+                         datasets: [{
+                             label: compareMode.category,
+                             data: compareMode.data.map(d => d.val),
+                         backgroundColor: compareMode.data.map(d => d.isMe ? '#FF7900' : '#e0e0e0'),
+                         borderRadius: 6,
+                         }]
+            }}
+            options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { display: false } },
+                    x: { grid: { display: false } }
+                }
+            }}
+            />
             </div>
             </div>
             </div>
