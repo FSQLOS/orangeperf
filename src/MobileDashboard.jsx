@@ -85,7 +85,12 @@ export default function MobileDashboard({ config }) {
                 } else {
                     if (!BLACKLIST_CA.some(w => libClean.includes(w)) && !EXCLUDED_PRICES.includes(caVal)) {
                         let caHT = caVal / 1.2; tempStats[v].CA += caHT; g_CA += caHT;
-                        if (caVal > 0) addItem("🛒 " + libClean);
+
+                        // CORRECTION ICI : On affiche même si négatif (remboursement)
+                        if (caVal !== 0) {
+                            const icon = caVal > 0 ? "🛒" : "↩️";
+                            addItem(`${icon} ${libClean} (${Math.round(caHT)}€)`);
+                        }
                     }
                 }
                 if (CODES.Broadband.includes(codeArt)) { inc('Broadband'); addItem("🌐 " + libClean); }
@@ -114,7 +119,7 @@ export default function MobileDashboard({ config }) {
         setCompareMode({ category, data: sortedData });
     };
 
-    // --- FONCTION DE TRI DES VENTES ---
+    // --- FONCTION DE TRI DES VENTES (Mise à jour pour inclure les retours) ---
     const getGroupedSales = (details) => {
         const groups = {
             '📱 Mobiles & Terminaux': [],
@@ -123,8 +128,8 @@ export default function MobileDashboard({ config }) {
         };
         details.forEach(item => {
             if (item.includes('📱') || item.includes('♻️')) groups['📱 Mobiles & Terminaux'].push(item);
-            else if (item.includes('🛒')) groups['🔌 Accessoires & Divers'].push(item);
-            else groups['🛡️ Services & Offres'].push(item); // Tout le reste (Assur, Box, etc.)
+            else if (item.includes('🛒') || item.includes('↩️')) groups['🔌 Accessoires & Divers'].push(item);
+            else groups['🛡️ Services & Offres'].push(item);
         });
             return groups;
     };
@@ -252,7 +257,6 @@ export default function MobileDashboard({ config }) {
             })}
             </div>
 
-            {/* SECTION TRIÉE PAR CATEGORIE */}
             <h3 className="history-title">Dernières ventes</h3>
             <div className="history-list">
             {selectedSeller.data.details.length === 0 ? <div style={{textAlign:'center', color:'#ccc'}}>Rien à afficher</div> :
