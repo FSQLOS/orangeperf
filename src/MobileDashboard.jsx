@@ -5,20 +5,13 @@ import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
-    ChevronRight, X, TrendingUp, AlertTriangle, BarChart2
+    ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
+    Trophy, Flame, Rocket, Medal
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-} from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { CountUp } from './CountUp'; // Import de l'animation
 
-// Enregistrement des composants graphiques
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function MobileDashboard({ config }) {
@@ -26,51 +19,33 @@ export default function MobileDashboard({ config }) {
     const [stats, setStats] = useState({});
     const [globalData, setGlobalData] = useState({});
     const [selectedSeller, setSelectedSeller] = useState(null);
-    const [compareMode, setCompareMode] = useState(null); // Pour le graphique
+    const [compareMode, setCompareMode] = useState(null);
 
-    // --- CONFIG TECHNIQUE ---
+    // --- CONFIG TECHNIQUE (Identique) ---
     const CODES = {
         Broadband: [804284, 805275, 804900, 804285, 804286, 804288, 804540, 804541, 804901, 805111, 805230],
         Mobile: [805315, 805311, 805307, 805278, 805277, 805276, 805261, 805260, 805259, 805234, 805233, 805232, 805110, 805104, 805103, 805102, 805081, 805070, 805068, 805064, 805063, 805062, 805061, 805055, 805002, 805001, 805000, 804996, 804995, 804994, 804287, 804285, 804283, 804982, 804827, 804826, 804266, 804210],
         MIG: [805226, 805228, 805227, 804608, 805243, 805242, 805235, 805241, 804610, 805225, 805224, 805223],
-        MEV: [801692],
-        MP: [804411, 804410],
-        Cyber: [805159],
+        MEV: [801692], MP: [804411, 804410], Cyber: [805159],
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO"];
     const KEY_MODELE = ["L30", "WIRE"];
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
-
-    // ⛔ LISTE NOIRE MISE À JOUR (AVEC E-RECH)
-    const BLACKLIST_CA = [
-        "DORO", "HINTO",               // Seniors
-        "FIXE", "DECT", "GIGASET",     // Fixes
-        "PARAFOUDRE", "MULTIPRISE",    // Élec
-        "PILE",                        // Énergie
-        "SAC", "KRAFT",                // Packaging
-        "CONFIGURATION", "ATELIER",    // Services
-        "FLASH", "EXPERTE",            // Services suite
-        "TIMBRE",                      // Fiscalité
-        "PLANCHE", "PHOTO", "IDENTITE",// Photos d'identité
-        "RECHARGE", "MOBICARTE",       // Recharges prépayées
-        "E-RECH"                       // Recharges électroniques
-    ];
-
+    const BLACKLIST_CA = ["DORO", "HINTO", "FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
-    // --- STYLE VISUEL ---
     const getCategoryStyle = (cat) => {
         switch(cat) {
-            case 'Terminaux': return { icon: <Smartphone size={18} />, color: '#000', label: 'Terminaux' };
-            case 'Mobile': return { icon: <Activity size={18} />, color: '#FF7900', label: 'Mobile' };
-            case 'Broadband': return { icon: <Wifi size={18} />, color: '#527EDB', label: 'Broadband' };
-            case 'MIG': return { icon: <Zap size={18} />, color: '#FFCC00', label: 'MIG' };
-            case 'MEV': return { icon: <TrendingUp size={18} />, color: '#856404', label: 'MEV' };
-            case 'Cyber': return { icon: <Shield size={18} />, color: '#6f42c1', label: 'Cyber' };
-            case 'MP': return { icon: <Home size={18} />, color: '#32C832', label: 'Maison P.' };
-            case 'Assurance': return { icon: <Shield size={18} />, color: '#32C832', label: 'Assur' };
-            default: return { icon: <AlertTriangle size={18} />, color: '#999', label: cat };
+            case 'Terminaux': return { icon: <Smartphone size={18} />, color: '#1a1a1a', label: 'Terminaux', grad: 'linear-gradient(135deg, #e0e0e0, #ffffff)' };
+            case 'Mobile': return { icon: <Activity size={18} />, color: '#FF7900', label: 'Mobile', grad: 'linear-gradient(135deg, #FF7900 10%, #ff9e42)' };
+            case 'Broadband': return { icon: <Wifi size={18} />, color: '#527EDB', label: 'Box', grad: 'linear-gradient(135deg, #527EDB, #82aaff)' };
+            case 'MIG': return { icon: <Zap size={18} />, color: '#FFCC00', label: 'MIG', grad: 'linear-gradient(135deg, #FFCC00, #ffe066)' };
+            case 'MEV': return { icon: <TrendingUp size={18} />, color: '#856404', label: 'MEV', grad: 'linear-gradient(135deg, #d4a017, #f6c23e)' };
+            case 'Cyber': return { icon: <Shield size={18} />, color: '#6f42c1', label: 'Cyber', grad: 'linear-gradient(135deg, #6f42c1, #a66efa)' };
+            case 'MP': return { icon: <Home size={18} />, color: '#32C832', label: 'Maison P.', grad: 'linear-gradient(135deg, #32C832, #6cdf6c)' };
+            case 'Assurance': return { icon: <Shield size={18} />, color: '#32C832', label: 'Assur', grad: 'linear-gradient(135deg, #32C832, #6cdf6c)' };
+            default: return { icon: <AlertTriangle size={18} />, color: '#999', label: cat, grad: '#eee' };
         }
     };
 
@@ -82,31 +57,23 @@ export default function MobileDashboard({ config }) {
         .then(r => r.text())
         .then(csvText => {
             Papa.parse(csvText, {
-                header: true,
-                skipEmptyLines: true,
+                header: true, skipEmptyLines: true,
                 complete: (results) => processData(results.data)
             });
         })
-        .catch(err => console.error("Erreur Fetch:", err));
+        .catch(err => console.error(err));
     }, []);
 
     const processData = (data) => {
         let teamMap = {};
-        const teamLines = config.team.trim().split('\n');
-        teamLines.forEach(line => {
-            if(line.includes(':')) {
-                const [code, name] = line.split(':');
-                teamMap[code.trim()] = name.trim();
-            }
+        config.team.trim().split('\n').forEach(line => {
+            if(line.includes(':')) { const [code, name] = line.split(':'); teamMap[code.trim()] = name.trim(); }
         });
         const teamCodes = Object.keys(teamMap);
 
         let tempStats = {};
         teamCodes.forEach(code => {
-            tempStats[code] = {
-                Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0,
-                Cyber:0, MP:0, Assurance:0, REC:0, CA:0, details: []
-            };
+            tempStats[code] = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0, Cyber:0, MP:0, Assurance:0, REC:0, CA:0, details: [] };
         });
 
         let g_Realise = 0, g_CA = 0, g_Term = 0, g_Assur = 0;
@@ -121,8 +88,7 @@ export default function MobileDashboard({ config }) {
                 let codeArt = parseInt(cleanRow["Code Article"]);
                 let rawLib = (cleanRow["Libellé Article"] || "").toString().toUpperCase();
                 let libClean = rawLib.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
-                let caStr = (cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.');
-                let caVal = parseFloat(caStr) || 0;
+                let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
 
                 if (libClean.startsWith("WP")) return;
 
@@ -134,16 +100,13 @@ export default function MobileDashboard({ config }) {
 
                 if (isTerminal) {
                     inc('Terminaux'); g_Term++;
-                    let isRec = KEY_REC.some(k => libClean.includes(k));
-                    if (isRec) { tempStats[v].REC++; addItem("♻️ " + libClean); }
+                    if (KEY_REC.some(k => libClean.includes(k))) { tempStats[v].REC++; addItem("♻️ " + libClean); }
                     else { addItem("📱 " + libClean); }
                     if ((libClean.includes("GOOGLE") || libClean.includes("PIXEL")) && hasStorage) tempStats[v].Google++;
                 } else {
-                    const isBlacklisted = BLACKLIST_CA.some(word => libClean.includes(word));
-                    const isExcludedPrice = EXCLUDED_PRICES.includes(caVal);
-
-                    if (!isBlacklisted && !isExcludedPrice) {
-                        tempStats[v].CA += caVal; g_CA += caVal;
+                    if (!BLACKLIST_CA.some(word => libClean.includes(word)) && !EXCLUDED_PRICES.includes(caVal)) {
+                        let caHT = caVal / 1.2;
+                        tempStats[v].CA += caHT; g_CA += caHT;
                         if (caVal > 0) addItem("🛒 " + libClean);
                     }
                 }
@@ -176,56 +139,51 @@ export default function MobileDashboard({ config }) {
 
         setStats(tempStats);
         setLoading(false);
-        if(g_ObjTotal > 0 && (g_Realise / g_ObjTotal) > 0.8) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        if(g_ObjTotal > 0 && (g_Realise / g_ObjTotal) > 0.8) confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
     };
 
-    // --- FONCTION POUR OUVRIR LE GRAPHIQUE ---
     const openComparison = (category) => {
         const sortedData = Object.keys(stats).map(code => {
             let name = "Inconnu";
-            config.team.split('\n').forEach(line => {
-                if(line.includes(code)) name = line.split(':')[1].trim();
-            });
-                return {
-                    name: name,
-                    val: stats[code][category],
-                    isMe: code === selectedSeller.code
-                };
+            config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
+            return { name, val: stats[code][category], isMe: code === selectedSeller.code };
         }).sort((a, b) => b.val - a.val);
-
         setCompareMode({ category, data: sortedData });
     };
 
-    if (loading) return <div className="loading-screen">🍊 Chargement...</div>;
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Synchronisation...</p></div>;
 
     const sortedTeamCodes = Object.keys(stats).sort((a, b) => stats[b].CA - stats[a].CA);
     const nbVendeurs = sortedTeamCodes.length;
 
     return (
         <div className="modern-dashboard">
+        {/* HEADER AVEC EFFET DE FLOU ET OMBRE */}
         <div className="header-glass">
-        <div>
-        <div className="subtitle">Suivi Mensuel</div>
+        <div className="header-content">
+        <div className="subtitle">Performance Live</div>
         <div className="title">Orange <span>Perf</span></div>
         </div>
-        <div className="ca-badge">{Math.round(globalData.ca).toLocaleString()} €</div>
+        <div className="ca-badge">
+        <span className="ca-label">CA ACC. HT</span>
+        <span className="ca-val"><CountUp end={Math.round(globalData.ca)} suffix=" €" /></span>
+        </div>
         </div>
 
         <div className="scroll-content">
-        {/* GLOBAL SCROLL */}
-        <div className="section-label">GLOBAL BOUTIQUE</div>
+        <div className="section-label">🎯 OBJECTIFS BOUTIQUE</div>
         <div className="global-scroll">
-        <div className="stat-card featured">
+        <div className="stat-card featured pulse-effect">
         <div className="circular-wrap">
         <CircularProgressbar
         value={globalData.pct} text={`${globalData.pct}%`}
-        styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.2)' })}
+        styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })}
         />
         </div>
-        <div className="card-label">Avancement</div>
+        <div className="card-label">Global</div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card" style={{background: 'linear-gradient(135deg, #ffffff, #f0f0f0)'}}>
         <div className="circular-wrap small">
         <CircularProgressbar
         value={globalData.assur} maxValue={100} text={`${globalData.assur}%`}
@@ -240,14 +198,17 @@ export default function MobileDashboard({ config }) {
             const current = globalData.counts[key];
             const target = config.objectifs[key];
             const pct = Math.min(100, Math.round((current / target) * 100));
+
             return (
                 <div key={key} className="stat-card">
-                <div className="icon-badge" style={{color: style.color, background: `${style.color}20`}}>
+                <div className="icon-badge" style={{background: style.grad, color: '#fff', boxShadow: `0 4px 10px ${style.color}40`}}>
                 {style.icon}
                 </div>
-                <div className="stat-value">{current} <span className="stat-target">/ {target}</span></div>
+                <div className="stat-value">
+                <CountUp end={current} /> <span className="stat-target">/ {target}</span>
+                </div>
                 <div className="progress-bar-mini">
-                <div className="fill" style={{width: `${pct}%`, background: style.color}}></div>
+                <div className="fill" style={{width: `${pct}%`, background: style.grad}}></div>
                 </div>
                 <div className="card-label">{style.label}</div>
                 </div>
@@ -255,46 +216,61 @@ export default function MobileDashboard({ config }) {
         })}
         </div>
 
-        <div className="section-label" style={{marginTop:'20px'}}>CLASSEMENT ÉQUIPE</div>
+        <div className="section-label" style={{marginTop:'25px'}}>🏆 CLASSEMENT ÉQUIPE</div>
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
             const s = stats[code];
             let name = "Inconnu";
-            config.team.split('\n').forEach(line => {
-                if(line.includes(code)) name = line.split(':')[1].trim();
-            });
-                const isTop3 = index < 3;
-                const txAssur = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux)*100) : 0;
-                return (
-                    <div key={code} className="seller-card" onClick={() => setSelectedSeller({code, name, data: s})}>
-                    <div className="seller-rank">{index + 1}</div>
-                    <div className={`seller-avatar ${isTop3 ? 'glow' : ''}`}>
-                    {isTop3 && <div className="crown">👑</div>}
-                    {name[0]}
-                    </div>
-                    <div className="seller-info">
-                    <div className="seller-name">{name}</div>
-                    <div className="seller-kpi-row">
-                    <span className="tag-kpi">📱 {s.Terminaux}</span>
-                    <span className="tag-kpi" style={{color: txAssur >= 42 ? 'green' : 'red'}}>🛡️ {txAssur}%</span>
-                    </div>
-                    </div>
-                    <div className="seller-ca">{Math.round(s.CA).toLocaleString()} € <ChevronRight size={16} color="#ccc" /></div>
-                    </div>
-                )
+            config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
+
+            const isGold = index === 0;
+            const isSilver = index === 1;
+            const isBronze = index === 2;
+            const rankClass = isGold ? 'rank-1' : isSilver ? 'rank-2' : isBronze ? 'rank-3' : '';
+
+            const txAssur = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux)*100) : 0;
+
+            return (
+                <div key={code} className={`seller-card ${rankClass}`} onClick={() => setSelectedSeller({code, name, data: s})}>
+                <div className="rank-badge">
+                {isGold ? '🥇' : isSilver ? '🥈' : isBronze ? '🥉' : `#${index + 1}`}
+                </div>
+                <div className="seller-avatar">
+                {name[0]}
+                {/* Petit badge "On fire" si bon CA ou Taux */}
+                {txAssur >= 50 && <div className="fire-badge">🔥</div>}
+                </div>
+                <div className="seller-info">
+                <div className="seller-name">{name}</div>
+                <div className="seller-kpi-row">
+                <div className="kpi-pill">📱 {s.Terminaux}</div>
+                <div className="kpi-pill" style={{
+                    background: txAssur >= 42 ? '#e8f5e9' : '#ffebee',
+                    color: txAssur >= 42 ? '#2e7d32' : '#c62828'
+                }}>
+                🛡️ {txAssur}%
+                </div>
+                </div>
+                </div>
+                <div className="seller-ca">
+                <div className="ca-val"><CountUp end={Math.round(s.CA)} suffix=" €" /></div>
+                <ChevronRight size={18} color="#ccc" style={{marginLeft: 5}} />
+                </div>
+                </div>
+            )
         })}
         </div>
         </div>
 
-        {/* MODAL VENDEUR DETAIL */}
+        {/* MODAL VENDEUR */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
-            <div className="glass-modal" onClick={e => e.stopPropagation()}>
+            <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-            <div className="modal-avatar">{selectedSeller.name[0]}</div>
+            <div className="modal-avatar-large">{selectedSeller.name[0]}</div>
             <div className="modal-title">
             <h2>{selectedSeller.name}</h2>
-            <p>Cliquez sur un item pour comparer</p>
+            <p>Touchez une jauge pour comparer ! 👇</p>
             </div>
             <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
             </div>
@@ -308,26 +284,34 @@ export default function MobileDashboard({ config }) {
                 const style = getCategoryStyle(key);
 
                 return (
-                    <div
-                    key={key}
-                    className={`obj-pill ${done ? 'done' : ''}`}
-                    onClick={() => openComparison(key)}
-                    style={{cursor: 'pointer'}}
-                    >
-                    <div className="pill-icon" style={{color: style.color}}>{style.icon}</div>
-                    <div className="pill-info">
-                    <div className="pill-label">{style.label} <BarChart2 size={10} style={{marginLeft:5, opacity:0.5}}/></div>
-                    <div className="pill-val"><strong>{current}</strong> / {indivTarget}</div>
+                    <div key={key} className={`obj-pill ${done ? 'done-glow' : ''}`} onClick={() => openComparison(key)}>
+                    <div className="pill-icon" style={{background: style.grad, color: 'white', boxShadow: `0 2px 5px ${style.color}40`}}>
+                    {style.icon}
                     </div>
-                    {done && <div className="check-mark">✔</div>}
+                    <div className="pill-info">
+                    <div className="pill-label">{style.label} <BarChart2 size={12} style={{opacity:0.6}}/></div>
+                    <div className="pill-val">
+                    <strong>{current}</strong> <span className="target-mini">/ {indivTarget}</span>
+                    </div>
+                    <div className="mini-prog-track">
+                    <div className="mini-prog-fill" style={{
+                        width: `${Math.min(100, (current/indivTarget)*100)}%`,
+                        background: done ? '#32C832' : style.grad
+                    }}></div>
+                    </div>
+                    </div>
+                    {done && <div className="check-mark-anim">🏆</div>}
                     </div>
                 )
             })}
             </div>
-            <h3>Détails Ventes</h3>
+
+            <h3 className="history-title">🧾 Dernières ventes</h3>
             <div className="history-list">
             {selectedSeller.data.details.map((item, i) => (
-                <div key={i} className="history-item">{item}</div>
+                <div key={i} className="history-item slide-in" style={{animationDelay: `${i * 0.05}s`}}>
+                {item}
+                </div>
             ))}
             </div>
             </div>
@@ -335,36 +319,34 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        {/* MODAL GRAPHIQUE COMPARATIF */}
+        {/* MODAL CHART */}
         {compareMode && (
             <div className="glass-overlay" style={{zIndex: 200}} onClick={() => setCompareMode(null)}>
-            <div className="glass-modal" style={{height: '60vh'}} onClick={e => e.stopPropagation()}>
+            <div className="glass-modal pop-in" style={{height: 'auto', minHeight: '50vh'}} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
             <div className="modal-title">
-            <h2>Comparatif {compareMode.category}</h2>
-            <p>Classement de l'équipe</p>
+            <h2>VS Le Reste</h2>
+            <p>Classement {compareMode.category}</p>
             </div>
             <div className="close-btn" onClick={() => setCompareMode(null)}><X /></div>
             </div>
-            <div style={{flex: 1, position: 'relative', width: '100%'}}>
+            <div style={{height: '300px', width: '100%'}}>
             <Bar
             data={{
                 labels: compareMode.data.map(d => d.name),
                          datasets: [{
                              label: compareMode.category,
                              data: compareMode.data.map(d => d.val),
-                         backgroundColor: compareMode.data.map(d => d.isMe ? '#FF7900' : '#e0e0e0'),
-                         borderRadius: 6,
+                         backgroundColor: compareMode.data.map(d => d.isMe ? '#FF7900' : '#E0E0E0'),
+                         borderRadius: 8,
+                         borderSkipped: false,
                          }]
             }}
             options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, grid: { display: false } },
-                    x: { grid: { display: false } }
-                }
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { backgroundColor: '#333', padding: 10, cornerRadius: 8 } },
+                scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } } },
+                animation: { duration: 1000, easing: 'easeOutQuart' }
             }}
             />
             </div>
