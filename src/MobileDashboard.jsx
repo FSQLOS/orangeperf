@@ -37,11 +37,8 @@ export default function MobileDashboard({ config }) {
     // 1. Détection Stockage
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
 
-    // 2. Détection Modèles SPÉCIFIQUES (J'ai ajouté NOTE, REDMI, XIAOMI ici)
-    const KEY_MODELE = [
-        "L30", "WIRE", "15C", "REDMI NOTE", "CROSSCALL STELLAR", "POCO",
-        "X5C", "A15", "A25", "A35", "A55", "S23", "S24", "S25", "IPHONE"
-    ];
+    // 2. Détection Modèles SPÉCIFIQUES
+    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI 15", "X5C", "HONOR X5", "A15", "A25", "A35", "A55", "CROSSCALL STELLAR", "REDMI NOTE"];
 
     // 3. ⛔ MOTS INTERDITS (LISTE BLINDÉE)
     const KEY_NOT_TERM = [
@@ -58,9 +55,10 @@ export default function MobileDashboard({ config }) {
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
-    // Helpers Date (Format Excel 13/2/2026)
+    // Helpers Date (MODIFIÉ POUR FORMAT EXCEL 13/2/2026)
     const getTodayStr = () => {
         const d = new Date();
+        // Plus de padStart(2,'0'), on renvoie 13/2/2026 brut
         return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
     };
 
@@ -112,7 +110,9 @@ export default function MobileDashboard({ config }) {
 
         data.forEach(row => {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
+            // On récupère la date du fichier
             let rowDate = cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"];
+            // Comparaison simple de chaîne de caractères
             let isToday = rowDate && rowDate.includes(todayStr);
 
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
@@ -142,9 +142,10 @@ export default function MobileDashboard({ config }) {
                     highestSale = { amount: caVal, seller: teamMap[v], item: libClean };
                 }
 
-                // --- LOGIQUE DETECTION ---
+                // --- LOGIQUE DETECTION TERMINAL CORRIGÉE ---
                 let hasStorage = KEY_STOCKAGE.some(k => libClean.includes(k));
                 let hasSpecificModel = KEY_MODELE.some(k => libClean.includes(k));
+
                 let isAccessoryKeyword = KEY_NOT_TERM.some(k => libClean.includes(k));
 
                 let isTerm = (hasStorage || hasSpecificModel) && !isAccessoryKeyword;
