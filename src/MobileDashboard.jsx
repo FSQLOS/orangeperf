@@ -6,7 +6,7 @@ import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
-    Trophy, Calendar, Clock, Receipt, RefreshCw
+    Trophy, Calendar, Clock, Receipt, RefreshCw, Tag
 } from 'lucide-react';
 import { CountUp } from './CountUp';
 
@@ -21,17 +21,18 @@ export default function MobileDashboard({ config }) {
     const [selectedSeller, setSelectedSeller] = useState(null);
     const [teamMap, setTeamMap] = useState({});
 
+    // --- CONFIGURATION VISUELLE DES FAMILLES ---
     const FAMILIES = {
-        BOX: { label: "🌐 LIVEBOX", color: "#527EDB" },
-        APPLE: { label: "🍎 APPLE", color: "#1a1a1a" },
-        SAMSUNG: { label: "🪐 SAMSUNG", color: "#034EA2" },
-        DORO: { label: "👴 DORO", color: "#E6007E" },
-        XIAOMI: { label: "📱 XIAOMI / AUTRES", color: "#FF6700" },
-        PROT: { label: "🛡️ PROTECTION", color: "#059669" },
-        ACC: { label: "🎧 ACCESSOIRES", color: "#4b5563" },
-        TRANSFERTS: { label: "📲 TRANSFERTS", color: "#4F46E5" },
-        SERV: { label: "✨ SERVICES / ASSUR", color: "#FF7900" },
-        AUTRE: { label: "📦 DIVERS", color: "#9ca3af" }
+        BOX: { label: "LIVEBOX", color: "#FF7900", bg: "#FFF5EC" },
+        APPLE: { label: "APPLE", color: "#000000", bg: "#F5F5F7" },
+        SAMSUNG: { label: "SAMSUNG", color: "#034EA2", bg: "#E8F0FE" },
+        DORO: { label: "DORO", color: "#E6007E", bg: "#FDF2F8" },
+        XIAOMI: { label: "XIAOMI / AUTRES", color: "#FF6700", bg: "#FFF4ED" },
+        PROT: { label: "PROTECTION", color: "#059669", bg: "#ECFDF5" },
+        ACC: { label: "ACCESSOIRES", color: "#4b5563", bg: "#F3F4F6" },
+        TRANSFERTS: { label: "TRANSFERTS", color: "#4F46E5", bg: "#EEF2FF" },
+        SERV: { label: "SERVICES / ASSUR", color: "#9333EA", bg: "#FAF5FF" },
+        AUTRE: { label: "DIVERS", color: "#6B7280", bg: "#F9FAFB" }
     };
 
     const CODES = {
@@ -65,34 +66,19 @@ export default function MobileDashboard({ config }) {
 
     const getTodayStr = () => {
         const d = new Date();
-        const day = d.getDate();
-        const month = d.getMonth() + 1;
-        const year = d.getFullYear();
-        return [`${day}/${month}/${year}`, `${day}/${month.toString().padStart(2, '0')}/${year}`];
+        return [`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, `${d.getDate()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`];
     };
 
     const fetchData = () => {
         setRefreshing(true);
         const t = new Date().getTime();
         const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
-        fetch(finalUrl)
-        .then(r => r.text())
-        .then(t => {
-            Papa.parse(t, {
-                header: true,
-                skipEmptyLines: true,
-                complete: r => {
-                    processData(r.data);
-                    setRefreshing(false);
-                }
-            });
-        })
-        .catch(() => setRefreshing(false));
+        fetch(finalUrl).then(r => r.text()).then(t => {
+            Papa.parse(t, { header: true, skipEmptyLines: true, complete: r => { processData(r.data); setRefreshing(false); }});
+        }).catch(() => setRefreshing(false));
     };
 
-    useEffect(() => {
-        fetchData();
-    }, [config.url]);
+    useEffect(() => { fetchData(); }, [config.url]);
 
     const processData = (data) => {
         let currentTeamMap = {};
@@ -125,20 +111,14 @@ export default function MobileDashboard({ config }) {
                 let codeArt = parseInt(cleanRow["Code Article"]);
                 let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
                 let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
-
                 if (lib.startsWith("WP")) return;
 
-                // --- LOGIQUE KPI ---
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k))) && !KEY_NOT_TERM.some(k => lib.includes(k));
                 let isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
-
-                // --- CALCUL CA (UNIQUEMENT ACCESSOIRES) ---
-                // REGLE : Si c'est un terminal ou si c'est blacklisté, le CA est à ZERO.
                 let ht = (!isTerm && !isBlacklisted) ? caVal / 1.2 : 0;
 
                 const article = { lib, fam: getFamily(lib, codeArt), ca: caVal };
 
-                // MAJ MOIS
                 tMonth[v].CA += ht;
                 g_CA += ht;
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
@@ -153,7 +133,6 @@ export default function MobileDashboard({ config }) {
                 if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
                 if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
 
-                // MAJ JOUR
                 if (isToday) {
                     tDay[v].CA += ht;
                     if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
@@ -177,10 +156,22 @@ export default function MobileDashboard({ config }) {
         setStatsMonth(tMonth); setStatsDay(tDay);
         if (highestSale.amount > 0) setBigWin(highestSale);
         setLoading(false);
-        if (viewMode === 'day') confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
     };
 
-    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Chargement...</p></div>;
+    const getCategoryStyle = (cat) => {
+        const styles = {
+            'Terminaux': { icon: <Smartphone size={16} />, color: '#1a1a1a', label: 'Terminaux', grad: 'linear-gradient(135deg, #e0e0e0, #ffffff)' },
+            'Mobile': { icon: <Activity size={16} />, color: '#FF7900', label: 'Mobile', grad: 'linear-gradient(135deg, #FF7900, #ff9e42)' },
+            'Broadband': { icon: <Wifi size={16} />, color: '#527EDB', label: 'Box', grad: 'linear-gradient(135deg, #527EDB, #82aaff)' },
+            'MIG': { icon: <Zap size={16} />, color: '#FFCC00', label: 'MIG', grad: 'linear-gradient(135deg, #FFCC00, #ffe066)' },
+            'MEV': { icon: <TrendingUp size={16} />, color: '#856404', label: 'MEV', grad: 'linear-gradient(135deg, #d4a017, #f6c23e)' },
+            'Cyber': { icon: <Shield size={16} />, color: '#6f42c1', label: 'Cyber', grad: 'linear-gradient(135deg, #6f42c1, #a66efa)' },
+            'MP': { icon: <Home size={16} />, color: '#32C832', label: 'Maison P.', grad: 'linear-gradient(135deg, #32C832, #6cdf6c)' }
+        };
+        return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
+    };
+
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Organisation des ventes...</p></div>;
 
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
@@ -193,7 +184,7 @@ export default function MobileDashboard({ config }) {
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
         <div className="ca-badge">
-        <span className="ca-label">CA ACC. HT (Mois)</span>
+        <span className="ca-label">CA ACC. HT</span>
         <span className="ca-val"><CountUp end={Math.round(globalData.ca)} suffix="€" /></span>
         </div>
         <button className={`refresh-btn ${refreshing ? 'spinning' : ''}`} onClick={fetchData}>
@@ -264,35 +255,50 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
+        {/* MODAL DÉTAILLÉ REDESSINÉ */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
+            <div className="modal-header-modern">
+            <div className="modal-header-left">
+            <div className="modal-avatar-circle">{selectedSeller.name[0]}</div>
+            <div className="modal-title-wrap">
             <h2>{selectedSeller.name}</h2>
-            <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
+            <p>Détail des ventes • {viewMode === 'month' ? 'Mensuel' : 'Journalier'}</p>
             </div>
-            <div className="modal-scroll">
+            </div>
+            <div className="close-btn-modern" onClick={() => setSelectedSeller(null)}><X size={24}/></div>
+            </div>
+
+            <div className="modal-scroll-modern">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
-                <div key={id} className="ticket-group-card">
-                <div className="ticket-header">
-                <span><Receipt size={14} /> Ticket #{id}</span>
-                <span className="t-date">{ticket.date}</span>
+                <div key={id} className="ticket-card-new">
+                <div className="ticket-card-header">
+                <div className="ticket-id"><Receipt size={16}/> Ticket <span>#{id}</span></div>
+                <div className="ticket-date">{ticket.date}</div>
                 </div>
+                <div className="ticket-card-body">
                 {Object.entries(FAMILIES).map(([famKey, famInfo]) => {
                     const itemsInFam = ticket.items.filter(i => i.fam === famKey);
                     if (itemsInFam.length === 0) return null;
                     return (
-                        <div key={famKey} className="fam-block">
-                        <div className="fam-label" style={{ color: famInfo.color }}>{famInfo.label}</div>
+                        <div key={famKey} className="fam-section-modern">
+                        <div className="fam-badge-modern" style={{ color: famInfo.color, backgroundColor: famInfo.bg }}>
+                        <Tag size={10} style={{marginRight: 4}}/> {famInfo.label}
+                        </div>
+                        <div className="fam-items-wrap">
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} className="item-row">
-                            <span>{item.lib}</span>
-                            <span className="item-ca">{item.ca > 0 ? Math.round(item.ca) + '€' : ''}</span>
+                            <div key={idx} className="item-row-modern">
+                            <span className="item-lib">{item.lib}</span>
+                            <div className="item-separator"></div>
+                            <span className="item-price-modern">{item.ca > 0 ? Math.round(item.ca) + '€' : '--'}</span>
                             </div>
                         ))}
                         </div>
+                        </div>
                     )
                 })}
+                </div>
                 </div>
             ))}
             </div>
@@ -302,16 +308,3 @@ export default function MobileDashboard({ config }) {
         </div>
     );
 }
-
-const getCategoryStyle = (cat) => {
-    const styles = {
-        'Terminaux': { icon: <Smartphone size={16} />, color: '#1a1a1a', label: 'Terminaux', grad: 'linear-gradient(135deg, #e0e0e0, #ffffff)' },
-        'Mobile': { icon: <Activity size={16} />, color: '#FF7900', label: 'Mobile', grad: 'linear-gradient(135deg, #FF7900, #ff9e42)' },
-        'Broadband': { icon: <Wifi size={16} />, color: '#527EDB', label: 'Box', grad: 'linear-gradient(135deg, #527EDB, #82aaff)' },
-        'MIG': { icon: <Zap size={16} />, color: '#FFCC00', label: 'MIG', grad: 'linear-gradient(135deg, #FFCC00, #ffe066)' },
-        'MEV': { icon: <TrendingUp size={16} />, color: '#856404', label: 'MEV', grad: 'linear-gradient(135deg, #d4a017, #f6c23e)' },
-        'Cyber': { icon: <Shield size={16} />, color: '#6f42c1', label: 'Cyber', grad: 'linear-gradient(135deg, #6f42c1, #a66efa)' },
-        'MP': { icon: <Home size={16} />, color: '#32C832', label: 'Maison P.', grad: 'linear-gradient(135deg, #32C832, #6cdf6c)' }
-    };
-    return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
-};
