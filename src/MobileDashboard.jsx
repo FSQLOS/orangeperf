@@ -18,6 +18,7 @@ export default function MobileDashboard({ config }) {
     const [viewMode, setViewMode] = useState('month');
     const [bigWin, setBigWin] = useState(null);
     const [selectedSeller, setSelectedSeller] = useState(null);
+    const [teamMap, setTeamMap] = useState({}); // Fix: Ajout du state pour teamMap
 
     // --- CONFIGURATION DES FAMILLES ---
     const FAMILIES = {
@@ -43,7 +44,7 @@ export default function MobileDashboard({ config }) {
 
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
 
-    // --- MODIFICATION ICI : KEY_MODELE MISE À JOUR ---
+    // KEY_MODELE MISE À JOUR
     const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "REDMI NOTE", "CROSSCALL STELLAR"];
 
     const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE"];
@@ -67,7 +68,10 @@ export default function MobileDashboard({ config }) {
 
     const getTodayStr = () => {
         const d = new Date();
-        return [`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, `${d.getDate()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`];
+        const day = d.getDate();
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+        return [`${day}/${month}/${year}`, `${day}/${month.toString().padStart(2, '0')}/${year}`];
     };
 
     useEffect(() => {
@@ -77,9 +81,11 @@ export default function MobileDashboard({ config }) {
     }, [config.url]);
 
     const processData = (data) => {
-        let teamMap = {};
-        config.team.trim().split('\n').forEach(line => { if(line.includes(':')) { const [c, n] = line.split(':'); teamMap[c.trim()] = n.trim(); }});
-        const teamCodes = Object.keys(teamMap);
+        let currentTeamMap = {};
+        config.team.trim().split('\n').forEach(line => { if(line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); }});
+        setTeamMap(currentTeamMap);
+
+        const teamCodes = Object.keys(currentTeamMap);
 
         let tMonth = {}, tDay = {};
         teamCodes.forEach(code => {
@@ -144,7 +150,7 @@ export default function MobileDashboard({ config }) {
                     if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
                     if (CODES.Assurance.includes(codeArt)) tDay[v].Assurance++;
                     if (caVal > highestSale.amount && !isCaBlacklisted) {
-                        highestSale = { amount: caVal, seller: teamMap[v], item: lib };
+                        highestSale = { amount: caVal, seller: currentTeamMap[v], item: lib };
                     }
                 }
             }
@@ -154,6 +160,7 @@ export default function MobileDashboard({ config }) {
         setStatsMonth(tMonth); setStatsDay(tDay);
         if(highestSale.amount > 0) setBigWin(highestSale);
         setLoading(false);
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     };
 
     const getCategoryStyle = (cat) => {
@@ -169,7 +176,7 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
-    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Analyse des ventes...</p></div>;
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Récupération des données...</p></div>;
 
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
@@ -182,7 +189,7 @@ export default function MobileDashboard({ config }) {
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
         <div className="ca-badge">
-        <span className="ca-label">CA ACC. HT (Mois)</span>
+        <span className="ca-label">CA ACC. HT</span>
         <span className="ca-val"><CountUp end={Math.round(globalData.ca)} suffix="€" /></span>
         </div>
         </div>
