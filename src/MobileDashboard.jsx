@@ -8,11 +8,7 @@ import {
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
     Trophy, Calendar, Clock, Receipt
 } from 'lucide-react';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { CountUp } from './CountUp';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function MobileDashboard({ config }) {
     const [loading, setLoading] = useState(true);
@@ -22,7 +18,6 @@ export default function MobileDashboard({ config }) {
     const [viewMode, setViewMode] = useState('month');
     const [bigWin, setBigWin] = useState(null);
     const [selectedSeller, setSelectedSeller] = useState(null);
-    const [compareMode, setCompareMode] = useState(null);
 
     // --- CONFIGURATION DES FAMILLES ---
     const FAMILIES = {
@@ -33,49 +28,132 @@ export default function MobileDashboard({ config }) {
         XIAOMI: { label: "📱 XIAOMI / AUTRES", color: "#FF6700" },
         PROT: { label: "🛡️ PROTECTION", color: "#059669" },
         ACC: { label: "🎧 ACCESSOIRES", color: "#4b5563" },
+        TRANSFERTS: { label: "📲 TRANSFERTS", color: "#4F46E5" },
         SERV: { label: "✨ SERVICES / ASSUR", color: "#FF7900" },
         AUTRE: { label: "📦 DIVERS", color: "#9ca3af" }
     };
 
     const CODES = {
         Broadband: [804284, 805275, 804900, 804285, 804286, 804288, 804540, 804541, 804901, 805111, 805230],
-        Mobile: [805315, 805311, 805307, 805278, 805277, 805276, 805261, 805260, 805259, 805234, 805233, 805232, 805110, 805104, 805103, 805102, 805081, 805070, 805068, 805064, 805063, 805062, 805061, 805055, 805002, 805001, 805000, 804996, 804995, 804994, 804287, 804285, 804283, 804982, 804827, 804826, 804266, 804210],
+        Mobile: [805315, 805311, 805307, 805278, 805277, 805276, 805261, 805260, 805259, 805234, 805233, 805232, 805110, 805104, 805103, 805102, 805081, 805070, 805068, 805064, 805063, 805062, 805061, 805055, 804287, 804285, 804283, 804266, 804210],
         MIG: [805226, 805228, 805227, 804608, 805243, 805242, 805235, 805241, 804610, 805225, 805224, 805223],
         MEV: [801692], MP: [804411, 804410], Cyber: [805159],
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
 
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
-    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "CROSSCALL STELLAR", "REDMI NOTE"];
+
+    // --- MODIFICATION ICI : KEY_MODELE MISE À JOUR ---
+    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "REDMI NOTE", "CROSSCALL STELLAR"];
+
     const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE"];
-    const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
-    // --- LOGIQUE DE TRI PAR FAMILLE ---
     const getFamily = (libelle, code) => {
         const l = libelle.toUpperCase();
         if (CODES.Broadband.includes(code)) return "BOX";
+        if (l.includes("CONFIGURATION FLASH") || l.includes("CONFIGURATION EXPERTE") || l.includes("ATELIER SMARTPHONE")) return "TRANSFERTS";
+        if (l.includes("FORCE GLASS") || l.includes("FORCE CASE") || l.includes("SPRAY")) return "ACC";
         if (l.includes("IPHONE") || l.includes("APPLE") || l.includes("AIRPOD")) return "APPLE";
         if (l.includes("SAMSUNG") || l.includes("GALAXY")) return "SAMSUNG";
         if (l.includes("DORO")) return "DORO";
         if (l.includes("XIAOMI") || l.includes("REDMI") || l.includes("POCO") || l.includes("HONOR")) return "XIAOMI";
         if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT")) return "PROT";
-        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB")) return "ACC";
+        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT")) return "ACC";
         if (l.includes("ASSURANCE") || l.includes("CYBER") || l.includes("SERVICE") || CODES.Assurance.includes(code)) return "SERV";
         return "AUTRE";
     };
 
     const getTodayStr = () => {
         const d = new Date();
-        return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+        return [`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, `${d.getDate()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`];
     };
 
-    const calculateLanding = (currentValue) => {
-        const d = new Date().getDate();
-        const t = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-        if(d === 0) return 0;
-        return Math.round((currentValue / d) * t);
+    useEffect(() => {
+        const t = new Date().getTime();
+        const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
+        fetch(finalUrl).then(r => r.text()).then(t => Papa.parse(t, {header:true, skipEmptyLines:true, complete:r=>processData(r.data)}));
+    }, [config.url]);
+
+    const processData = (data) => {
+        let teamMap = {};
+        config.team.trim().split('\n').forEach(line => { if(line.includes(':')) { const [c, n] = line.split(':'); teamMap[c.trim()] = n.trim(); }});
+        const teamCodes = Object.keys(teamMap);
+
+        let tMonth = {}, tDay = {};
+        teamCodes.forEach(code => {
+            const empty = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0, CA:0, tickets: {} };
+            tMonth[code] = JSON.parse(JSON.stringify(empty));
+            tDay[code] = JSON.parse(JSON.stringify(empty));
+        });
+
+        let g_CA=0, g_Term=0, g_Assur=0, g_Counts = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0 };
+        let highestSale = { amount: 0, seller: "", item: "" };
+        const todayFormats = getTodayStr();
+
+        data.forEach(row => {
+            let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
+            let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
+            if (!rowDate) return;
+
+            let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
+            let isToday = todayFormats.some(f => rowDate.includes(f));
+
+            let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
+            let v = teamCodes.find(code => vRaw.includes(code));
+
+            if (v) {
+                let codeArt = parseInt(cleanRow["Code Article"]);
+                let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
+                let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
+
+                if (lib.startsWith("WP")) return;
+
+                let isCaBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
+                let ht = isCaBlacklisted ? 0 : caVal / 1.2;
+                let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k))) && !KEY_NOT_TERM.some(k => lib.includes(k));
+
+                const article = { lib, fam: getFamily(lib, codeArt), ca: caVal };
+
+                tMonth[v].CA += ht;
+                g_CA += ht;
+
+                if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
+                tMonth[v].tickets[ticketId].items.push(article);
+
+                if (isTerm) { tMonth[v].Terminaux++; g_Term++; g_Counts.Terminaux++; }
+                if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
+                if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
+                if (CODES.MIG.includes(codeArt)) { tMonth[v].MIG++; g_Counts.MIG++; }
+                if (CODES.MEV.includes(codeArt)) { tMonth[v].MEV++; g_Counts.MEV++; }
+                if (CODES.MP.includes(codeArt)) { tMonth[v].MP++; g_Counts.MP++; }
+                if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
+                if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
+
+                if (isToday) {
+                    tDay[v].CA += ht;
+                    if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
+                    tDay[v].tickets[ticketId].items.push(article);
+                    if (isTerm) tDay[v].Terminaux++;
+                    if (CODES.Broadband.includes(codeArt)) tDay[v].Broadband++;
+                    if (CODES.Mobile.includes(codeArt)) tDay[v].Mobile++;
+                    if (CODES.MIG.includes(codeArt)) tDay[v].MIG++;
+                    if (CODES.MEV.includes(codeArt)) tDay[v].MEV++;
+                    if (CODES.MP.includes(codeArt)) tDay[v].MP++;
+                    if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
+                    if (CODES.Assurance.includes(codeArt)) tDay[v].Assurance++;
+                    if (caVal > highestSale.amount && !isCaBlacklisted) {
+                        highestSale = { amount: caVal, seller: teamMap[v], item: lib };
+                    }
+                }
+            }
+        });
+
+        setGlobalData({ ca: g_CA, assur: g_Term > 0 ? Math.round((g_Assur/g_Term)*100) : 0, counts: g_Counts });
+        setStatsMonth(tMonth); setStatsDay(tDay);
+        if(highestSale.amount > 0) setBigWin(highestSale);
+        setLoading(false);
     };
 
     const getCategoryStyle = (cat) => {
@@ -91,106 +169,7 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
-    useEffect(() => {
-        const t = new Date().getTime();
-        const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
-        fetch(finalUrl).then(r => r.text()).then(t => Papa.parse(t, {header:true, skipEmptyLines:true, complete:r=>processData(r.data)}));
-    }, [config.url]);
-
-    const processData = (data) => {
-        let teamMap = {};
-        config.team.trim().split('\n').forEach(line => { if(line.includes(':')) { const [c, n] = line.split(':'); teamMap[c.trim()] = n.trim(); }});
-        const teamCodes = Object.keys(teamMap);
-
-        let tempStatsMonth = {}, tempStatsDay = {};
-        teamCodes.forEach(code => {
-            const empty = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Google:0, Cyber:0, MP:0, Assurance:0, CA:0, tickets: {} };
-            tempStatsMonth[code] = JSON.parse(JSON.stringify(empty));
-            tempStatsDay[code] = JSON.parse(JSON.stringify(empty));
-        });
-
-        let g_CA=0, g_Term=0, g_Assur=0, globalCounts = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0 };
-        let highestSale = { amount: 0, seller: "", item: "" };
-        const todayStr = getTodayStr();
-
-        data.forEach(row => {
-            let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
-            let rowDate = cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"];
-            let ticketId = cleanRow["Ticket"] || "SANS_TICKET";
-            let isToday = rowDate && rowDate.includes(todayStr);
-
-            let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
-            let v = teamCodes.find(code => vRaw.includes(code));
-
-            if (v) {
-                let codeArt = parseInt(cleanRow["Code Article"]);
-                let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
-                let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
-
-                if (lib.startsWith("WP")) return;
-
-                // Fonction d'ajout au ticket
-                const addToTicket = (target, isDay) => {
-                    if (!target[v].tickets[ticketId]) {
-                        target[v].tickets[ticketId] = { date: rowDate, items: [] };
-                    }
-                    target[v].tickets[ticketId].items.push({
-                        lib,
-                        fam: getFamily(lib, codeArt),
-                                                           ca: caVal
-                    });
-                };
-
-                // Logic KPI
-                let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k))) && !KEY_NOT_TERM.some(k => lib.includes(k));
-
-                const updateKPI = (target, isDay) => {
-                    if (isTerm) { target[v].Terminaux++; if(!isDay) g_Term++; }
-                    if (CODES.Broadband.includes(codeArt)) { target[v].Broadband++; if(!isDay) globalCounts.Broadband++; }
-                    if (CODES.Mobile.includes(codeArt)) { target[v].Mobile++; if(!isDay) globalCounts.Mobile++; }
-                    if (CODES.MIG.includes(codeArt)) { target[v].MIG++; if(!isDay) globalCounts.MIG++; }
-                    if (CODES.MEV.includes(codeArt)) { target[v].MEV++; if(!isDay) globalCounts.MEV++; }
-                    if (CODES.MP.includes(codeArt)) { target[v].MP++; if(!isDay) globalCounts.MP++; }
-                    if (CODES.Cyber.includes(codeArt)) { target[v].Cyber++; if(!isDay) globalCounts.Cyber++; }
-                    if (CODES.Assurance.includes(codeArt)) { target[v].Assurance++; if(!isDay) { globalCounts.Assurance++; g_Assur++; } }
-
-                    if (!BLACKLIST_CA.some(w => lib.includes(w)) && !EXCLUDED_PRICES.includes(caVal)) {
-                        let ht = caVal / 1.2;
-                        target[v].CA += ht;
-                        if(!isDay) g_CA += ht;
-                    }
-                    addToTicket(target, isDay);
-                };
-
-                updateKPI(tempStatsMonth, false);
-                if(isToday) updateKPI(tempStatsDay, true);
-
-                if (isToday && caVal > highestSale.amount && !EXCLUDED_PRICES.includes(caVal)) {
-                    highestSale = { amount: caVal, seller: teamMap[v], item: lib };
-                }
-            }
-        });
-
-        setGlobalData({ ca: g_CA, assur: g_Term > 0 ? Math.round((g_Assur/g_Term)*100) : 0, counts: globalCounts });
-        setStatsMonth(tempStatsMonth);
-        setStatsDay(tempStatsDay);
-        if(highestSale.amount > 0) setBigWin(highestSale);
-        setLoading(false);
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    };
-
-    const openComparison = (category) => {
-        const activeStats = viewMode === 'month' ? statsMonth : statsDay;
-        const sortedData = Object.keys(activeStats).map(code => {
-            let name = "Inconnu";
-            config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
-            let val = category === 'TxAssur' ? (activeStats[code].Terminaux > 0 ? Math.round((activeStats[code].Assurance / activeStats[code].Terminaux) * 100) : 0) : activeStats[code][category];
-            return { name, val, isMe: selectedSeller ? code === selectedSeller.code : false };
-        }).sort((a, b) => b.val - a.val);
-        setCompareMode({ category: category === 'TxAssur' ? 'Taux Assurance' : category, data: sortedData, isPercent: category === 'TxAssur' });
-    };
-
-    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Rangement par tickets...</p></div>;
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Analyse des ventes...</p></div>;
 
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
@@ -203,8 +182,8 @@ export default function MobileDashboard({ config }) {
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
         <div className="ca-badge">
-        <span className="ca-label">CA ACC. HT</span>
-        <span className="ca-val">{Math.round(globalData.ca)}€</span>
+        <span className="ca-label">CA ACC. HT (Mois)</span>
+        <span className="ca-val"><CountUp end={Math.round(globalData.ca)} suffix="€" /></span>
         </div>
         </div>
 
@@ -225,9 +204,9 @@ export default function MobileDashboard({ config }) {
         </div>
 
         <div className="scroll-content">
-        <div className="section-label">🎯 INDICATEURS ÉQUIPE</div>
+        <div className="section-label">🎯 ÉQUIPE</div>
         <div className="global-scroll">
-        <div className="stat-card featured" onClick={() => openComparison('TxAssur')}>
+        <div className="stat-card featured">
         <div className="circular-wrap">
         <CircularProgressbar value={globalData.assur} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })} />
         </div>
@@ -237,7 +216,7 @@ export default function MobileDashboard({ config }) {
             const style = getCategoryStyle(key);
             const count = viewMode === 'month' ? globalData.counts[key] : Object.values(currentStats).reduce((acc, s) => acc + s[key], 0);
             return (
-                <div key={key} className="stat-card" onClick={() => openComparison(key)}>
+                <div key={key} className="stat-card">
                 <div className="icon-badge" style={{background: style.grad}}>{style.icon}</div>
                 <div className="stat-value">{count}</div>
                 <div className="card-label">{style.label}</div>
@@ -251,8 +230,7 @@ export default function MobileDashboard({ config }) {
         {sortedTeamCodes.map((code, index) => {
             const s = currentStats[code];
             if (s.CA === 0 && s.Terminaux === 0) return null;
-            let name = "Inconnu";
-            config.team.split('\n').forEach(line => { if(line.includes(code)) name = line.split(':')[1].trim(); });
+            const name = teamMap[code] || code;
             const tx = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux)*100) : 0;
             return (
                 <div key={code} className={`seller-card rank-${index+1}`} onClick={() => setSelectedSeller({code, name, data: s})}>
@@ -272,7 +250,6 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL DÉTAILLÉ AVEC RANGEMENT PAR TICKET ET FAMILLE */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
@@ -281,15 +258,12 @@ export default function MobileDashboard({ config }) {
             <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
             </div>
             <div className="modal-scroll">
-            {/* On boucle sur les tickets du vendeur */}
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
                 <div key={id} className="ticket-group-card" style={{background: '#fff', borderRadius: '15px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
                 <div className="ticket-header" style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '10px'}}>
                 <span style={{fontWeight: 'bold', fontSize: '13px', color: '#666'}}><Receipt size={14} style={{verticalAlign: 'middle', marginRight: '5px'}}/> Ticket #{id}</span>
                 <span style={{fontSize: '11px', color: '#999'}}>{ticket.date}</span>
                 </div>
-
-                {/* On boucle sur nos familles prédéfinies pour ranger les articles du ticket */}
                 {Object.entries(FAMILIES).map(([famKey, famInfo]) => {
                     const itemsInFam = ticket.items.filter(i => i.fam === famKey);
                     if (itemsInFam.length === 0) return null;
@@ -307,31 +281,6 @@ export default function MobileDashboard({ config }) {
                 })}
                 </div>
             ))}
-            </div>
-            </div>
-            </div>
-        )}
-
-        {/* MODAL COMPARAISON */}
-        {compareMode && (
-            <div className="glass-overlay" onClick={() => setCompareMode(null)}>
-            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'60vh'}} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-            <h3>Classement {compareMode.category}</h3>
-            <div className="close-btn" onClick={() => setCompareMode(null)}><X /></div>
-            </div>
-            <div style={{height: '300px'}}>
-            <Bar
-            data={{
-                labels: compareMode.data.map(d => d.name),
-                         datasets: [{
-                             data: compareMode.data.map(d => d.val),
-                         backgroundColor: compareMode.data.map(d => d.isMe ? '#FF7900' : '#E0E0E0'),
-                         borderRadius: 5
-                         }]
-            }}
-            options={{ indexAxis: 'y', plugins: { legend: { display: false } }, maintainAspectRatio: false }}
-            />
             </div>
             </div>
             </div>
