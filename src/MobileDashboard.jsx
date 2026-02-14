@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import * as XLSX from 'xlsx'; // Lecture directe Excel
+import * as XLSX from 'xlsx';
 import confetti from 'canvas-confetti';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
-    ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
+    ChevronRight, X, TrendingUp, AlertTriangle,
     Trophy, Calendar, Clock
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
@@ -22,7 +22,6 @@ export default function MobileDashboard({ config }) {
     const [viewMode, setViewMode] = useState('month');
     const [bigWin, setBigWin] = useState(null);
     const [selectedSeller, setSelectedSeller] = useState(null);
-    const [compareMode, setCompareMode] = useState(null);
 
     // --- CONFIGURATION METIER ---
     const CODES = {
@@ -37,10 +36,8 @@ export default function MobileDashboard({ config }) {
     const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "NOTE", "XIAOMI", "POCO", "X5C", "HONOR", "A15", "A25", "A35", "A55", "S23", "S24", "S25", "IPHONE", "PIXEL"];
     const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD"];
     const KEY_REC = ["REC", "RECOND", "RECONDITIONN", "RENEWD", "OCCASION", "2ND VIE", "SECONDE VIE", "GRADE", "ECO", "RE-"];
-    const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
-    // Helper Date (Format 13/2/2026)
     const getTodayStr = () => {
         const d = new Date();
         return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
@@ -55,11 +52,12 @@ export default function MobileDashboard({ config }) {
     useEffect(() => {
         const fetchExcel = async () => {
             try {
-                // Utilise ton lien direct OneDrive ici
-                const response = await fetch(config.url);
+                // Ton lien SharePoint direct
+                const excelUrl = "https://orangestore-my.sharepoint.com/:x:/g/personal/mag_484-chateaufarine-besancon_generaledetelephone_com/IQCbYYoCNc6cSaV1qWfDKtr6AVCkNzvxRb3V3UAg3Lnr1Bo?download=1";
+
+                const response = await fetch(excelUrl);
                 const arrayBuffer = await response.arrayBuffer();
-                const data = new Uint8Array(arrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
+                const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 const json = XLSX.utils.sheet_to_json(worksheet);
@@ -70,7 +68,7 @@ export default function MobileDashboard({ config }) {
             }
         };
         fetchExcel();
-    }, [config.url]);
+    }, []);
 
     const processData = (data) => {
         let teamMap = {};
@@ -106,7 +104,6 @@ export default function MobileDashboard({ config }) {
 
             if (libClean.startsWith("WP")) return;
 
-            // Fonction de mise à jour unique (évite le double comptage)
             const update = (cat, label, isCA = false, val = 0) => {
                 if (isCA) {
                     tMonth[v].CA += val;
@@ -123,32 +120,20 @@ export default function MobileDashboard({ config }) {
                 }
             };
 
-            // BIG WIN
+            const isTerm = (KEY_STOCKAGE.some(k => libClean.includes(k)) || KEY_MODELE.some(k => libClean.includes(k))) && !KEY_NOT_TERM.some(k => libClean.includes(k));
+
             if (isToday && caVal > highestSale.amount && !EXCLUDED_PRICES.includes(caVal)) {
                 highestSale = { amount: caVal, seller: teamMap[v], item: libClean };
             }
 
-            // DETECTION LOGIQUE
-            const hasStockage = KEY_STOCKAGE.some(k => libClean.includes(k));
-            const hasModele = KEY_MODELE.some(k => libClean.includes(k));
-            const isAccessory = KEY_NOT_TERM.some(k => libClean.includes(k));
-            const isTerm = (hasStockage || hasModele) && !isAccessory;
-
             if (isTerm) {
                 update('Terminaux', (KEY_REC.some(k => libClean.includes(k)) ? "♻️ " : "📱 ") + libClean);
                 g_Term++;
-                if (libClean.includes("GOOGLE") || libClean.includes("PIXEL")) {
-                    tMonth[v].Google++;
-                    if (isToday) tDay[v].Google++;
-                }
-            } else {
-                if (!BLACKLIST_CA.some(w => libClean.includes(w)) && !EXCLUDED_PRICES.includes(caVal)) {
-                    const caHT = caVal / 1.2;
-                    if (caVal !== 0) update(null, `${caVal > 0 ? "🛒" : "↩️"} ${libClean} (${Math.round(caHT)}€)`, true, caHT);
-                }
+            } else if (!EXCLUDED_PRICES.includes(caVal)) {
+                const caHT = caVal / 1.2;
+                if (caVal !== 0) update(null, `${caVal > 0 ? "🛒" : "↩️"} ${libClean} (${Math.round(caHT)}€)`, true, caHT);
             }
 
-            // CODES ARTICLES
             if (CODES.Broadband.includes(codeArt)) update('Broadband', "🌐 " + libClean);
             else if (CODES.Mobile.includes(codeArt)) update('Mobile', "Sim " + libClean);
             else if (CODES.MIG.includes(codeArt)) update('MIG', "⚡ " + libClean);
@@ -187,14 +172,13 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
-    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Synchronisation Excel...</p></div>;
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Accès au fichier SharePoint...</p></div>;
 
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedCodes = Object.keys(currentStats).sort((a,b) => currentStats[b].CA - currentStats[a].CA);
 
     return (
         <div className="modern-dashboard">
-        {/* HEADER */}
         <div className="header-glass">
         <div className="header-content">
         <div className="subtitle">Orange Perf</div>
@@ -206,19 +190,17 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* BIG WIN */}
         {bigWin && viewMode === 'day' && (
             <div className="big-win-card slide-in">
             <div className="bw-icon">🏆</div>
             <div className="bw-info">
-            <div className="bw-label">RECORD DU JOUR</div>
+            <div className="bw-label">TOP VENTE DU JOUR</div>
             <div className="bw-seller">{bigWin.seller} <span className="bw-amount">{Math.round(bigWin.amount)}€</span></div>
             <div className="bw-item">{bigWin.item}</div>
             </div>
             </div>
         )}
 
-        {/* TOGGLE */}
         <div className="toggle-container">
         <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}>
         <Clock size={14} /> Aujourd'hui
@@ -246,7 +228,7 @@ export default function MobileDashboard({ config }) {
             return (
                 <div key={key} className="stat-card">
                 <div className="icon-badge" style={{background: style.grad, color:'#fff'}}>{style.icon}</div>
-                <div className="stat-value">{count} <span className="stat-target">{viewMode === 'month' ? `/ ${target}` : ''}</span></div>
+                <div className="stat-value">{count}</div>
                 <div className="progress-bar-mini"><div className="fill" style={{width:`${pct}%`, background:style.grad}}></div></div>
                 <div className="card-label">{style.label}</div>
                 </div>
@@ -259,7 +241,7 @@ export default function MobileDashboard({ config }) {
         {sortedCodes.map((code, index) => {
             const s = currentStats[code];
             if (viewMode === 'day' && s.CA === 0 && s.Terminaux === 0) return null;
-            const name = teamMap[code] || "Inconnu";
+            const name = teamMap[code] || "Vendeur";
             const tx = s.Terminaux > 0 ? Math.round((s.Assurance/s.Terminaux)*100) : 0;
             return (
                 <div key={code} className={`seller-card rank-${index+1}`} onClick={() => setSelectedSeller({code, name, data: s})}>
@@ -279,7 +261,6 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL VENDEUR */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
@@ -293,7 +274,6 @@ export default function MobileDashboard({ config }) {
             {viewMode === 'month' && (
                 <div className="projection-banner">
                 🔮 Atterrissage estimé : <strong>{calculateLanding(selectedSeller.data.CA)}€</strong>
-                <div className="proj-sub">Basé sur le rythme de vente actuel</div>
                 </div>
             )}
 
@@ -302,22 +282,19 @@ export default function MobileDashboard({ config }) {
                 const style = getCategoryStyle(key);
                 const val = selectedSeller.data[key];
                 const target = Math.ceil((config.objectifs[key] || 0) / sortedCodes.length);
-                const landing = calculateLanding(val);
                 return (
-                    <div key={key} className={`obj-pill ${val >= target ? 'done-glow' : ''}`}>
+                    <div key={key} className="obj-pill">
                     <div className="pill-icon" style={{background:style.grad}}>{style.icon}</div>
                     <div className="pill-info">
                     <div className="pill-label">{style.label}</div>
                     <div className="pill-val"><strong>{val}</strong> / {target}</div>
-                    <div className="mini-prog-track"><div className="mini-prog-fill" style={{width:`${Math.min(100, (val/target)*100)}%`, background:style.grad}}></div></div>
-                    {viewMode === 'month' && <div className="landing-mini">Att: {landing}</div>}
                     </div>
                     </div>
                 );
             })}
             </div>
 
-            <h3 className="history-title">Dernières ventes</h3>
+            <h3 className="history-title">Journal des ventes</h3>
             <div className="history-list">
             {selectedSeller.data.details.map((d, i) => <div key={i} className="history-item slide-in">{d}</div>)}
             </div>
