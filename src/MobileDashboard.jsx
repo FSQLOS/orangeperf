@@ -11,7 +11,9 @@ import {
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { CountUp } from './CountUp';
+
+// Note : Assurez-vous que ce composant existe ou remplacez par une span simple
+const CountUp = ({ end, suffix = "" }) => <span>{end}{suffix}</span>;
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
@@ -20,11 +22,11 @@ export default function MobileDashboard({ config }) {
     const [refreshing, setRefreshing] = useState(false);
     const [statsMonth, setStatsMonth] = useState({});
     const [statsDay, setStatsDay] = useState({});
-    const [globalData, setGlobalData] = useState({});
+    const [globalData, setGlobalData] = useState({ ca: 0, assur: 0, counts: {} });
     const [viewMode, setViewMode] = useState('month');
     const [selectedSeller, setSelectedSeller] = useState(null);
     const [compareMode, setCompareMode] = useState(null);
-    const [caModal, setCaModal] = useState(false); // Modal spécifique CA
+    const [caModal, setCaModal] = useState(false);
     const [teamMap, setTeamMap] = useState({});
 
     const FAMILIES = {
@@ -54,7 +56,6 @@ export default function MobileDashboard({ config }) {
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
-    // Helper Date Prorata
     const getMonthInfo = () => {
         const d = new Date();
         const now = d.getDate();
@@ -83,19 +84,37 @@ export default function MobileDashboard({ config }) {
     };
 
     const fetchData = () => {
+        if (!config?.url) return;
         setRefreshing(true);
         const t = new Date().getTime();
         const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
-        fetch(finalUrl).then(r => r.text()).then(t => {
-            Papa.parse(t, { header: true, skipEmptyLines: true, complete: r => { processData(r.data); setRefreshing(false); }});
-        }).catch(() => setRefreshing(false));
+        fetch(finalUrl)
+        .then(r => r.text())
+        .then(t => {
+            Papa.parse(t, {
+                header: true,
+                skipEmptyLines: true,
+                complete: r => {
+                    processData(r.data);
+                    setRefreshing(false);
+                }
+            });
+        })
+        .catch(() => setRefreshing(false));
     };
 
-    useEffect(() => { fetchData(); }, [config.url]);
+    useEffect(() => { fetchData(); }, [config?.url]);
 
     const processData = (data) => {
         let currentTeamMap = {};
-        config.team.trim().split('\n').forEach(line => { if (line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); } });
+        if (config?.team) {
+            config.team.trim().split('\n').forEach(line => {
+                if (line.includes(':')) {
+                    const [c, n] = line.split(':');
+                    currentTeamMap[c.trim()] = n.trim();
+                }
+            });
+        }
         setTeamMap(currentTeamMap);
         const teamCodes = Object.keys(currentTeamMap);
 
@@ -113,6 +132,7 @@ export default function MobileDashboard({ config }) {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
             let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
             if (!rowDate) return;
+
             let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
             let isToday = todayFormats.some(f => rowDate.includes(f));
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
@@ -163,13 +183,17 @@ export default function MobileDashboard({ config }) {
         setLoading(false);
     };
 
-    const openGlobalComparison = (category) => {
-        const stats = viewMode === 'month' ? statsMonth : statsDay;
-        const nbVendeurs = Object.keys(teamMap).length || 1;
-        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((config.objectifs[category] || 0) / nbVendeurs) : Math.ceil(((config.objectifs[category] || 0) / 25) / nbVendeurs) || 1);
+    // --- VARIABLES DÉDUITES ---
+    const currentStats = viewMode === 'month' ? statsMonth : statsDay;
+    const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
 
-        const data = Object.keys(stats).map(code => {
-            const s = stats[code];
+    const openGlobalComparison = (category) => {
+        const nbVendeurs = Object.keys(teamMap).length || 1;
+        const objectives = config?.objectifs || {};
+        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((objectives[category] || 0) / nbVendeurs) : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
+
+        const data = Object.keys(currentStats).map(code => {
+            const s = currentStats[code];
             let val = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
             let color = (val >= indivTarget) ? '#10b981' : (val >= indivTarget / 2 ? '#f59e0b' : '#ef4444');
             return { name: teamMap[code] || code, val, color };
@@ -191,13 +215,14 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
-    // --- LOGIQUE R/O CA HT ---
     const mInfo = getMonthInfo();
-    const objTotalCA = config.objectifs['CA'] || 0;
+    const objTotalCA = config?.objectifs?.CA || 0;
     const prorataTarget = Math.round(objTotalCA * mInfo.pct);
     const diffCA = Math.round(globalData.ca - prorataTarget);
     const isAhead = diffCA >= 0;
-    const landingCA = Math.round(globalData.ca / mInfo.now * mInfo.total);
+    const landingCA = mInfo.now > 0 ? Math.round(globalData.ca / mInfo.now * mInfo.total) : 0;
+
+    if (loading) return <div style={{padding: '40px', textAlign: 'center', fontFamily: 'sans-serif'}}>Chargement des données...</div>;
 
     return (
         <div className="modern-dashboard">
@@ -224,13 +249,11 @@ export default function MobileDashboard({ config }) {
             <h2>Performance CA HT Boutique</h2>
             <div className="close-btn" onClick={() => setCaModal(false)}><X /></div>
             </div>
-
             <div className="ro-container">
             <div className="ro-main-stat">
             <div className="ro-label">Réalisé au {mInfo.now} du mois</div>
             <div className="ro-value">{Math.round(globalData.ca)} €</div>
             </div>
-
             <div className="ro-grid">
             <div className="ro-card">
             <div className="ro-icon"><Target size={18} color="#666"/></div>
@@ -245,7 +268,6 @@ export default function MobileDashboard({ config }) {
             </div>
             </div>
             </div>
-
             <div className="ro-footer-card">
             <div className="ro-footer-item">
             <span>Objectif Total Mois</span>
@@ -256,16 +278,11 @@ export default function MobileDashboard({ config }) {
             <strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong>
             </div>
             </div>
-
-            <p style={{fontSize: '11px', color: '#999', marginTop: '15px', textAlign: 'center'}}>
-            * Le calcul prorata se base sur {mInfo.now} jours écoulés sur {mInfo.total}.
-            </p>
             </div>
             </div>
             </div>
         )}
 
-        {/* RESTE DU DASHBOARD (Toggles, Stats, Classement) */}
         <div className="toggle-container">
         <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}><Clock size={14} /> Jour</div>
         <div className={`toggle-btn ${viewMode === 'month' ? 'active' : ''}`} onClick={() => setViewMode('month')}><Calendar size={14} /> Mois</div>
@@ -282,7 +299,7 @@ export default function MobileDashboard({ config }) {
         </div>
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
-            const count = viewMode === 'month' ? globalData.counts[key] : Object.values(currentStats).reduce((acc, s) => acc + s[key], 0);
+            const count = viewMode === 'month' ? (globalData.counts[key] || 0) : Object.values(currentStats).reduce((acc, s) => acc + (s[key] || 0), 0);
             return (
                 <div key={key} className="stat-card" onClick={() => openGlobalComparison(key)}>
                 <div className="icon-badge" style={{ background: style.grad }}>{style.icon}</div>
@@ -326,7 +343,24 @@ export default function MobileDashboard({ config }) {
             <div className="close-btn" onClick={() => setCompareMode(null)}><X /></div>
             </div>
             <div className="modal-info-bar">Objectif individuel : <strong>{compareMode.target}{compareMode.isPercent ? '%' : ''}</strong></div>
-            <div style={{height: '380px', padding: '10px'}}><Bar data={{ labels: compareMode.data.map(d => d.name), datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 8, barThickness: 28 }] }} options={{ indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', offset: 4, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') } }, scales: { x: { display: false, beginAtZero: true }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } } }} /></div>
+            <div style={{height: '380px', padding: '10px'}}>
+            <Bar
+            data={{
+                labels: compareMode.data.map(d => d.name),
+                         datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 8, barThickness: 28 }]
+            }}
+            options={{
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { anchor: 'end', align: 'right', offset: 4, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') }
+                },
+                scales: { x: { display: false, beginAtZero: true }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } }
+            }}
+            />
+            </div>
             </div>
             </div>
         )}
@@ -335,7 +369,10 @@ export default function MobileDashboard({ config }) {
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>{selectedSeller.name}</h2><div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div></div>
+            <div className="modal-header">
+            <h2>{selectedSeller.name}</h2>
+            <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
+            </div>
             <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
                 <div key={id} className="ticket-group-card" style={{background: '#fff', borderRadius: '15px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
