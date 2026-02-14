@@ -1,7 +1,21 @@
 :root {
   --orange: #FF7900;
-  --bg: #f4f6fa;
+  --dark-bg: #0f172a;
+  --light-bg: #f4f6fa;
   --glass: rgba(255, 255, 255, 0.9);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, system-ui, sans-serif;
+  background-color: var(--light-bg);
+  color: #1a1a1a;
+  overflow-x: hidden;
 }
 
 /* --- PROTECTION ANTI-FLASH --- */
@@ -9,19 +23,8 @@
   opacity: 0;
   transition: opacity 0.5s ease-in-out;
 }
+.app-container.loaded { opacity: 1; }
 
-.app-container.loaded {
-  opacity: 1;
-}
-
-body {
-  margin: 0;
-  font-family: -apple-system, system-ui, sans-serif;
-  background-color: var(--bg);
-  color: #1a1a1a;
-}
-
-/* --- LOADING SCREEN --- */
 .loading-screen {
   position: fixed;
   inset: 0;
@@ -32,124 +35,130 @@ body {
   justify-content: center;
   z-index: 9999;
 }
-
 .loader {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   border: 4px solid #f3f3f3;
   border-top: 4px solid var(--orange);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 15px;
 }
-
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
-/* --- HEADER --- */
+/* --- HEADER & CA --- */
 .header-glass {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  position: sticky; top: 0; z-index: 1000;
   background: var(--glass);
   backdrop-filter: blur(10px);
   padding: 15px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid rgba(0,0,0,0.05);
 }
-
 .ca-badge {
-  background: #1a1a1a;
-  color: white;
-  padding: 8px 15px;
-  border-radius: 12px;
-  text-align: right;
+  background: #1a1a1a; color: white;
+  padding: 8px 15px; border-radius: 12px;
+  text-align: right; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
-
 .ca-val { font-size: 16px; font-weight: 800; }
 
-/* --- GRILLE DE TUILES --- */
+/* --- TUILES KPI PREMIUM --- */
 .global-scroll {
-  display: flex;
-  overflow-x: auto;
-  padding: 15px 20px;
-  gap: 12px;
+  display: flex; overflow-x: auto;
+  padding: 15px 20px; gap: 12px;
   scrollbar-width: none;
 }
+.global-scroll::-webkit-scrollbar { display: none; }
 
 .stat-card {
-  min-width: 110px;
-  background: white;
-  padding: 15px;
-  border-radius: 22px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+  min-width: 110px; background: white;
+  padding: 15px; border-radius: 22px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
 }
-
 .stat-card.featured {
-  background: var(--orange);
-  color: white;
+  background: linear-gradient(135deg, var(--orange), #ff9e42);
+  color: white; min-width: 130px;
 }
-
 .icon-badge {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
-  color: white;
+  width: 44px; height: 44px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px; color: white;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
-
-.stat-value { font-size: 20px; font-weight: 800; }
-.card-label { font-size: 10px; font-weight: 700; color: #666; margin-top: 4px; }
-.featured .card-label { color: rgba(255,255,255,0.8); }
+.stat-value { font-size: 20px; font-weight: 900; }
 
 /* --- CLASSEMENT --- */
 .seller-card {
-  background: white;
-  margin: 0 20px 12px;
-  padding: 12px;
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  background: white; margin: 0 20px 10px;
+  padding: 15px; border-radius: 20px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+.seller-avatar {
+  width: 45px; height: 45px; background: #f1f5f9;
+  border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-weight: 800; position: relative;
+}
+.king-crown { position: absolute; top: -10px; right: -5px; font-size: 16px; }
+
+/* --- DÉTAILS DES VENTES (FACTURE PRO) --- */
+.ticket-group-card {
+  background: white; border-radius: 20px;
+  padding: 18px; margin-bottom: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  border: 1px solid #f1f5f9;
+}
+.ticket-header {
+  display: flex; justify-content: space-between;
+  border-bottom: 2px solid #f8fafc; padding-bottom: 10px; margin-bottom: 12px;
+}
+.family-label {
+  font-size: 10px; font-weight: 800; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 6px; background: #f8fafc;
+  margin-bottom: 6px; display: inline-block;
+}
+.item-row {
+  display: flex; justify-content: space-between;
+  padding: 6px 0; border-bottom: 1px solid #f1f5f9;
 }
 
-.seller-avatar {
-  width: 40px;
-  height: 40px;
-  background: #eee;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
+/* --- TROPHÉE (PRIORITÉ ABSOLUE) --- */
+.ps-trophy-container {
+  position: fixed; top: 30px; left: 0; right: 0;
+  display: flex; justify-content: center;
+  z-index: 1000000 !important;
+  pointer-events: none;
+}
+.ps-trophy-card {
+  background: rgba(15, 15, 15, 0.95);
+  backdrop-filter: blur(15px); border-radius: 50px;
+  padding: 12px 30px 12px 12px; display: flex; align-items: center;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 20px rgba(255,215,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  animation: psTrophyPop 4.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+.ps-gold-circle {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  border-radius: 50%; display: flex; justify-content: center;
+  align-items: center; margin-right: 15px;
+}
+.ps-trophy-title { font-size: 16px; color: #fff; font-weight: 900; }
+.ps-trophy-sub { font-size: 11px; color: #FFD700; font-style: italic; }
+
+@keyframes psTrophyPop {
+  0% { transform: translateY(-150%) scale(0.8); opacity: 0; }
+  15% { transform: translateY(0) scale(1); opacity: 1; }
+  85% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-150%) scale(0.9); opacity: 0; }
 }
 
 /* --- MODALES --- */
 .glass-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.4);
-  backdrop-filter: blur(5px);
-  z-index: 1000;
-  display: flex;
-  align-items: flex-end;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(5px); z-index: 5000;
+  display: flex; align-items: flex-end;
 }
-
 .glass-modal {
-  background: white;
-  width: 100%;
-  border-radius: 30px 30px 0 0;
-  padding: 25px;
-  max-height: 85vh;
-  overflow-y: auto;
+  background: white; width: 100%; border-radius: 30px 30px 0 0;
+  padding: 25px; max-height: 85vh; overflow-y: auto;
 }
