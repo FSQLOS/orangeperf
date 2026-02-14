@@ -1,3 +1,5 @@
+/* --- index.css --- */
+
 :root {
   --orange: #FF7900;
   --bg: #f4f6fa;
@@ -18,7 +20,6 @@ body {
   position: fixed; inset: 0; background: white;
   display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;
 }
-
 .loader {
   width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--orange);
   border-radius: 50%; animation: spin 1s linear infinite;
@@ -40,19 +41,55 @@ body {
 .ca-label { font-size: 9px; opacity: 0.7; text-transform: uppercase; display: block; }
 .ca-val { font-size: 16px; font-weight: 800; }
 
-/* TUILES */
-.global-scroll { display: flex; overflow-x: auto; padding: 20px; gap: 12px; scrollbar-width: none; }
-.stat-card {
-  min-width: 110px; background: white; padding: 15px; border-radius: 20px;
-  text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+/* --- TUILES PREMIUM --- */
+.global-scroll {
+  display: flex;
+  overflow-x: auto;
+  padding: 20px;
+  gap: 12px;
+  scrollbar-width: none;
 }
-.stat-card.featured { background: var(--orange); color: white; }
-.circular-wrap { width: 50px; height: 50px; margin: 0 auto 8px; }
-.stat-value { font-size: 20px; font-weight: 800; }
-.card-label { font-size: 10px; font-weight: 700; color: #666; margin-top: 4px; }
+.global-scroll::-webkit-scrollbar { display: none; }
+
+.stat-card {
+  min-width: 115px;
+  background: white;
+  padding: 15px 10px;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.stat-card:active { transform: scale(0.95); }
+
+.icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  color: white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.stat-card.featured {
+  background: linear-gradient(135deg, var(--orange), #ff9e42);
+  color: white;
+}
+
+.circular-wrap { width: 50px; height: 50px; margin-bottom: 5px; }
+.stat-value { font-size: 20px; font-weight: 900; line-height: 1; }
+.card-label { font-size: 10px; font-weight: 700; color: #94a3b8; margin-top: 4px; text-transform: uppercase; }
 .featured .card-label { color: rgba(255,255,255,0.8); }
 
-/* CLASSEMENT */
+/* CLASSEMENT & MODALES */
 .seller-card {
   background: white; margin: 0 20px 10px; padding: 15px; border-radius: 18px;
   display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
@@ -61,8 +98,6 @@ body {
   width: 42px; height: 42px; background: #f1f5f9; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; font-weight: 800;
 }
-
-/* MODALES */
 .glass-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   backdrop-filter: blur(5px); z-index: 2000; display: flex; align-items: flex-end;
@@ -71,11 +106,6 @@ body {
   background: white; width: 100%; border-radius: 30px 30px 0 0;
   padding: 25px; max-height: 85vh; overflow-y: auto; box-sizing: border-box;
 }
-.ro-main-stat { text-align: center; background: #f8fafc; padding: 20px; border-radius: 20px; margin-bottom: 20px; }
-.ro-value { font-size: 32px; font-weight: 900; }
-.ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.ro-card { border: 1px solid #e2e8f0; padding: 15px; border-radius: 18px; text-align: center; }
-
 .toggle-container { display: flex; background: #e2e8f0; margin: 10px 20px; padding: 4px; border-radius: 12px; }
 .toggle-btn { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 600; border-radius: 10px; color: #666; }
 .toggle-btn.active { background: white; color: #1a1a1a; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
