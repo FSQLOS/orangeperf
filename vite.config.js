@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  // N'oublie pas de vérifier que le nom du dépôt est correct
   base: '/orangeperf/',
   plugins: [
     react(),
@@ -26,20 +25,22 @@ export default defineConfig({
                             })
   ],
   build: {
-    // On augmente un peu la limite pour supprimer l'alerte
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        // C'est ici qu'on sépare les grosses bibliothèques
         manualChunks(id) {
+          // On isole uniquement les bibliothèques qui ne changent jamais et qui sont lourdes
           if (id.includes('node_modules')) {
+            // Bloc Excel
             if (id.includes('xlsx')) {
-              return 'vendor-excel'; // Met xlsx dans son propre fichier
+              return 'vendor-excel';
             }
-            if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
-              return 'vendor-charts'; // Met les graphiques à part
+            // Bloc Graphiques (on regroupe tout ce qui touche à Chart.js ici)
+            if (id.includes('chart.js') || id.includes('react-chartjs-2') || id.includes('chartjs-plugin-datalabels')) {
+              return 'vendor-charts';
             }
-            return 'vendor'; // Le reste des bibliothèques (React, etc.)
+            // On laisse Vite gérer le reste (React, Lucide, etc.) automatiquement
+            // pour éviter les dépendances circulaires.
           }
         }
       }
