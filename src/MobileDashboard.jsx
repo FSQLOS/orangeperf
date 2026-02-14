@@ -6,21 +6,21 @@ import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
-    Trophy, Calendar, Clock, Receipt
+    Trophy, Calendar, Clock, Receipt, RefreshCw
 } from 'lucide-react';
 import { CountUp } from './CountUp';
 
 export default function MobileDashboard({ config }) {
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [statsMonth, setStatsMonth] = useState({});
     const [statsDay, setStatsDay] = useState({});
     const [globalData, setGlobalData] = useState({});
     const [viewMode, setViewMode] = useState('month');
     const [bigWin, setBigWin] = useState(null);
     const [selectedSeller, setSelectedSeller] = useState(null);
-    const [teamMap, setTeamMap] = useState({}); // Fix: Ajout du state pour teamMap
+    const [teamMap, setTeamMap] = useState({});
 
-    // --- CONFIGURATION DES FAMILLES ---
     const FAMILIES = {
         BOX: { label: "🌐 LIVEBOX", color: "#527EDB" },
         APPLE: { label: "🍎 APPLE", color: "#1a1a1a" },
@@ -43,18 +43,15 @@ export default function MobileDashboard({ config }) {
     };
 
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
-
-    // KEY_MODELE MISE À JOUR
     const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "REDMI NOTE", "CROSSCALL STELLAR"];
-
     const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE"];
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
-    const getFamily = (libelle, code) => {
-        const l = libelle.toUpperCase();
+    const getFamily = (lib, code) => {
+        const l = lib.toUpperCase();
         if (CODES.Broadband.includes(code)) return "BOX";
-        if (l.includes("CONFIGURATION FLASH") || l.includes("CONFIGURATION EXPERTE") || l.includes("ATELIER SMARTPHONE")) return "TRANSFERTS";
+        if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
         if (l.includes("FORCE GLASS") || l.includes("FORCE CASE") || l.includes("SPRAY")) return "ACC";
         if (l.includes("IPHONE") || l.includes("APPLE") || l.includes("AIRPOD")) return "APPLE";
         if (l.includes("SAMSUNG") || l.includes("GALAXY")) return "SAMSUNG";
@@ -74,27 +71,43 @@ export default function MobileDashboard({ config }) {
         return [`${day}/${month}/${year}`, `${day}/${month.toString().padStart(2, '0')}/${year}`];
     };
 
-    useEffect(() => {
+    const fetchData = () => {
+        setRefreshing(true);
         const t = new Date().getTime();
         const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
-        fetch(finalUrl).then(r => r.text()).then(t => Papa.parse(t, {header:true, skipEmptyLines:true, complete:r=>processData(r.data)}));
+        fetch(finalUrl)
+        .then(r => r.text())
+        .then(t => {
+            Papa.parse(t, {
+                header: true,
+                skipEmptyLines: true,
+                complete: r => {
+                    processData(r.data);
+                    setRefreshing(false);
+                }
+            });
+        })
+        .catch(() => setRefreshing(false));
+    };
+
+    useEffect(() => {
+        fetchData();
     }, [config.url]);
 
     const processData = (data) => {
         let currentTeamMap = {};
-        config.team.trim().split('\n').forEach(line => { if(line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); }});
+        config.team.trim().split('\n').forEach(line => { if (line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); } });
         setTeamMap(currentTeamMap);
-
         const teamCodes = Object.keys(currentTeamMap);
 
         let tMonth = {}, tDay = {};
         teamCodes.forEach(code => {
-            const empty = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0, CA:0, tickets: {} };
+            const empty = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Cyber: 0, MP: 0, Assurance: 0, CA: 0, tickets: {} };
             tMonth[code] = JSON.parse(JSON.stringify(empty));
             tDay[code] = JSON.parse(JSON.stringify(empty));
         });
 
-        let g_CA=0, g_Term=0, g_Assur=0, g_Counts = { Broadband:0, Mobile:0, MIG:0, MEV:0, Terminaux:0, Cyber:0, MP:0, Assurance:0 };
+        let g_CA = 0, g_Term = 0, g_Assur = 0, g_Counts = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Cyber: 0, MP: 0, Assurance: 0 };
         let highestSale = { amount: 0, seller: "", item: "" };
         const todayFormats = getTodayStr();
 
@@ -105,7 +118,6 @@ export default function MobileDashboard({ config }) {
 
             let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
             let isToday = todayFormats.some(f => rowDate.includes(f));
-
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
             let v = teamCodes.find(code => vRaw.includes(code));
 
@@ -116,15 +128,19 @@ export default function MobileDashboard({ config }) {
 
                 if (lib.startsWith("WP")) return;
 
-                let isCaBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
-                let ht = isCaBlacklisted ? 0 : caVal / 1.2;
+                // --- LOGIQUE KPI ---
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k))) && !KEY_NOT_TERM.some(k => lib.includes(k));
+                let isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
+
+                // --- CALCUL CA (UNIQUEMENT ACCESSOIRES) ---
+                // REGLE : Si c'est un terminal ou si c'est blacklisté, le CA est à ZERO.
+                let ht = (!isTerm && !isBlacklisted) ? caVal / 1.2 : 0;
 
                 const article = { lib, fam: getFamily(lib, codeArt), ca: caVal };
 
+                // MAJ MOIS
                 tMonth[v].CA += ht;
                 g_CA += ht;
-
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
                 tMonth[v].tickets[ticketId].items.push(article);
 
@@ -137,6 +153,7 @@ export default function MobileDashboard({ config }) {
                 if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
                 if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
 
+                // MAJ JOUR
                 if (isToday) {
                     tDay[v].CA += ht;
                     if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
@@ -149,34 +166,21 @@ export default function MobileDashboard({ config }) {
                     if (CODES.MP.includes(codeArt)) tDay[v].MP++;
                     if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
                     if (CODES.Assurance.includes(codeArt)) tDay[v].Assurance++;
-                    if (caVal > highestSale.amount && !isCaBlacklisted) {
+                    if (caVal > highestSale.amount && !isBlacklisted && !isTerm) {
                         highestSale = { amount: caVal, seller: currentTeamMap[v], item: lib };
                     }
                 }
             }
         });
 
-        setGlobalData({ ca: g_CA, assur: g_Term > 0 ? Math.round((g_Assur/g_Term)*100) : 0, counts: g_Counts });
+        setGlobalData({ ca: g_CA, assur: g_Term > 0 ? Math.round((g_Assur / g_Term) * 100) : 0, counts: g_Counts });
         setStatsMonth(tMonth); setStatsDay(tDay);
-        if(highestSale.amount > 0) setBigWin(highestSale);
+        if (highestSale.amount > 0) setBigWin(highestSale);
         setLoading(false);
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        if (viewMode === 'day') confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
     };
 
-    const getCategoryStyle = (cat) => {
-        const styles = {
-            'Terminaux': { icon: <Smartphone size={16} />, color: '#1a1a1a', label: 'Terminaux', grad: 'linear-gradient(135deg, #e0e0e0, #ffffff)' },
-            'Mobile': { icon: <Activity size={16} />, color: '#FF7900', label: 'Mobile', grad: 'linear-gradient(135deg, #FF7900, #ff9e42)' },
-            'Broadband': { icon: <Wifi size={16} />, color: '#527EDB', label: 'Box', grad: 'linear-gradient(135deg, #527EDB, #82aaff)' },
-            'MIG': { icon: <Zap size={16} />, color: '#FFCC00', label: 'MIG', grad: 'linear-gradient(135deg, #FFCC00, #ffe066)' },
-            'MEV': { icon: <TrendingUp size={16} />, color: '#856404', label: 'MEV', grad: 'linear-gradient(135deg, #d4a017, #f6c23e)' },
-            'Cyber': { icon: <Shield size={16} />, color: '#6f42c1', label: 'Cyber', grad: 'linear-gradient(135deg, #6f42c1, #a66efa)' },
-            'MP': { icon: <Home size={16} />, color: '#32C832', label: 'Maison P.', grad: 'linear-gradient(135deg, #32C832, #6cdf6c)' }
-        };
-        return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
-    };
-
-    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Récupération des données...</p></div>;
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Chargement...</p></div>;
 
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
@@ -189,16 +193,19 @@ export default function MobileDashboard({ config }) {
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
         <div className="ca-badge">
-        <span className="ca-label">CA ACC. HT</span>
+        <span className="ca-label">CA ACC. HT (Mois)</span>
         <span className="ca-val"><CountUp end={Math.round(globalData.ca)} suffix="€" /></span>
         </div>
+        <button className={`refresh-btn ${refreshing ? 'spinning' : ''}`} onClick={fetchData}>
+        <RefreshCw size={20} />
+        </button>
         </div>
 
         {bigWin && viewMode === 'day' && (
             <div className="big-win-card slide-in">
             <div className="bw-icon">🏆</div>
             <div className="bw-info">
-            <div className="bw-label">RECORD DU JOUR</div>
+            <div className="bw-label">TOP VENTE ACC (JOUR)</div>
             <div className="bw-seller">{bigWin.seller} <span className="bw-amount">{Math.round(bigWin.amount)}€</span></div>
             <div className="bw-item">{bigWin.item}</div>
             </div>
@@ -224,7 +231,7 @@ export default function MobileDashboard({ config }) {
             const count = viewMode === 'month' ? globalData.counts[key] : Object.values(currentStats).reduce((acc, s) => acc + s[key], 0);
             return (
                 <div key={key} className="stat-card">
-                <div className="icon-badge" style={{background: style.grad}}>{style.icon}</div>
+                <div className="icon-badge" style={{ background: style.grad }}>{style.icon}</div>
                 <div className="stat-value">{count}</div>
                 <div className="card-label">{style.label}</div>
                 </div>
@@ -232,16 +239,16 @@ export default function MobileDashboard({ config }) {
         })}
         </div>
 
-        <div className="section-label">🏆 CLASSEMENT</div>
+        <div className="section-label">🏆 CLASSEMENT CA ACC</div>
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
             const s = currentStats[code];
             if (s.CA === 0 && s.Terminaux === 0) return null;
             const name = teamMap[code] || code;
-            const tx = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux)*100) : 0;
+            const tx = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0;
             return (
-                <div key={code} className={`seller-card rank-${index+1}`} onClick={() => setSelectedSeller({code, name, data: s})}>
-                <div className="rank-badge">{index+1}</div>
+                <div key={code} className={`seller-card rank-${index + 1}`} onClick={() => setSelectedSeller({ code, name, data: s })}>
+                <div className="rank-badge">{index + 1}</div>
                 <div className="seller-avatar">{name[0]}</div>
                 <div className="seller-info">
                 <div className="seller-name">{name}</div>
@@ -250,7 +257,7 @@ export default function MobileDashboard({ config }) {
                 <span className="kpi-pill">🛡️ {tx}%</span>
                 </div>
                 </div>
-                <div className="seller-ca"><strong>{Math.round(s.CA)}€</strong> <ChevronRight size={14}/></div>
+                <div className="seller-ca"><strong>{Math.round(s.CA)}€</strong> <ChevronRight size={14} /></div>
                 </div>
             )
         })}
@@ -266,21 +273,21 @@ export default function MobileDashboard({ config }) {
             </div>
             <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
-                <div key={id} className="ticket-group-card" style={{background: '#fff', borderRadius: '15px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
-                <div className="ticket-header" style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '10px'}}>
-                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#666'}}><Receipt size={14} style={{verticalAlign: 'middle', marginRight: '5px'}}/> Ticket #{id}</span>
-                <span style={{fontSize: '11px', color: '#999'}}>{ticket.date}</span>
+                <div key={id} className="ticket-group-card">
+                <div className="ticket-header">
+                <span><Receipt size={14} /> Ticket #{id}</span>
+                <span className="t-date">{ticket.date}</span>
                 </div>
                 {Object.entries(FAMILIES).map(([famKey, famInfo]) => {
                     const itemsInFam = ticket.items.filter(i => i.fam === famKey);
                     if (itemsInFam.length === 0) return null;
                     return (
-                        <div key={famKey} style={{marginBottom: '10px'}}>
-                        <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px', opacity: 0.8}}>{famInfo.label}</div>
+                        <div key={famKey} className="fam-block">
+                        <div className="fam-label" style={{ color: famInfo.color }}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '2px 0'}}>
-                            <span style={{color: '#333'}}>{item.lib}</span>
-                            <span style={{fontWeight: 'bold', color: '#666'}}>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</span>
+                            <div key={idx} className="item-row">
+                            <span>{item.lib}</span>
+                            <span className="item-ca">{item.ca > 0 ? Math.round(item.ca) + '€' : ''}</span>
                             </div>
                         ))}
                         </div>
@@ -295,3 +302,16 @@ export default function MobileDashboard({ config }) {
         </div>
     );
 }
+
+const getCategoryStyle = (cat) => {
+    const styles = {
+        'Terminaux': { icon: <Smartphone size={16} />, color: '#1a1a1a', label: 'Terminaux', grad: 'linear-gradient(135deg, #e0e0e0, #ffffff)' },
+        'Mobile': { icon: <Activity size={16} />, color: '#FF7900', label: 'Mobile', grad: 'linear-gradient(135deg, #FF7900, #ff9e42)' },
+        'Broadband': { icon: <Wifi size={16} />, color: '#527EDB', label: 'Box', grad: 'linear-gradient(135deg, #527EDB, #82aaff)' },
+        'MIG': { icon: <Zap size={16} />, color: '#FFCC00', label: 'MIG', grad: 'linear-gradient(135deg, #FFCC00, #ffe066)' },
+        'MEV': { icon: <TrendingUp size={16} />, color: '#856404', label: 'MEV', grad: 'linear-gradient(135deg, #d4a017, #f6c23e)' },
+        'Cyber': { icon: <Shield size={16} />, color: '#6f42c1', label: 'Cyber', grad: 'linear-gradient(135deg, #6f42c1, #a66efa)' },
+        'MP': { icon: <Home size={16} />, color: '#32C832', label: 'Maison P.', grad: 'linear-gradient(135deg, #32C832, #6cdf6c)' }
+    };
+    return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
+};
