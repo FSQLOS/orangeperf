@@ -6,14 +6,13 @@ import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
-    Trophy, Calendar, Clock, Receipt, RefreshCw
+    Trophy, Calendar, Clock, Receipt, RefreshCw, Tag
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import ChartDataLabels from 'chartjs-plugin-datalabels'; // Pour afficher les chiffres sur les barres
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { CountUp } from './CountUp';
 
-// On enregistre le plugin de labels
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
 export default function MobileDashboard({ config }) {
@@ -156,14 +155,16 @@ export default function MobileDashboard({ config }) {
         setLoading(false);
     };
 
-    // --- LOGIQUE DE COMPARAISON AVEC COULEURS & LABELS ---
+    // --- LOGIQUE DE COMPARAISON RÉVISÉE ---
     const openGlobalComparison = (category) => {
         const stats = viewMode === 'month' ? statsMonth : statsDay;
         const nbVendeurs = Object.keys(teamMap).length || 1;
 
-        // Calcul de l'objectif individuel
         let indivTarget = 0;
-        if (viewMode === 'month') {
+        // Correction ici : Objectif fixe de 42% pour le taux assurance
+        if (category === 'TxAssur') {
+            indivTarget = 42;
+        } else if (viewMode === 'month') {
             indivTarget = Math.ceil((config.objectifs[category] || 0) / nbVendeurs);
         } else {
             indivTarget = Math.ceil(((config.objectifs[category] || 0) / 25) / nbVendeurs) || 1;
@@ -173,14 +174,13 @@ export default function MobileDashboard({ config }) {
             const s = stats[code];
             let val = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
 
-            // Logique de couleur
-            let color = '#ef4444'; // Rouge par défaut
+            let color = '#ef4444';
         if (category === 'TxAssur') {
-            if (val >= 42) color = '#10b981'; // Vert
-            else if (val >= 30) color = '#f59e0b'; // Orange
+            if (val >= 42) color = '#10b981';
+            else if (val >= 30) color = '#f59e0b';
         } else {
-            if (val >= indivTarget) color = '#10b981'; // Vert
-            else if (val >= indivTarget / 2) color = '#f59e0b'; // Orange
+            if (val >= indivTarget) color = '#10b981';
+            else if (val >= indivTarget / 2) color = '#f59e0b';
         }
 
         return { name: teamMap[code] || code, val, color };
@@ -202,14 +202,13 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
-    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Synchronisation...</p></div>;
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Mise à jour...</p></div>;
 
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
 
     return (
         <div className="modern-dashboard">
-        {/* HEADER */}
         <div className="header-glass">
         <div className="header-content">
         <div className="subtitle">Orange Perf</div>
@@ -230,7 +229,7 @@ export default function MobileDashboard({ config }) {
         </div>
 
         <div className="scroll-content">
-        <div className="section-label">🎯 ÉQUIPE (Cliquer pour comparer)</div>
+        <div className="section-label">🎯 ÉQUIPE</div>
         <div className="global-scroll">
         <div className="stat-card featured" onClick={() => openGlobalComparison('TxAssur')}>
         <div className="circular-wrap">
@@ -251,7 +250,7 @@ export default function MobileDashboard({ config }) {
         })}
         </div>
 
-        <div className="section-label">🏆 CLASSEMENT CA ACC</div>
+        <div className="section-label">🏆 CLASSEMENT</div>
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
             const s = currentStats[code];
@@ -275,18 +274,18 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL COMPARATIF AVEC CHIFFRES SUR BARRES & COULEURS DYNAMIQUES */}
+        {/* MODAL COMPARATIF : CORRECTION AFFICHAGE TRONQUÉ */}
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
-            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
+            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'85vh'}} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
             <h2>{compareMode.category === 'TxAssur' ? 'Taux Assurance (%)' : `Volume ${compareMode.category}`}</h2>
             <div className="close-btn" onClick={() => setCompareMode(null)}><X /></div>
             </div>
             <div className="modal-info-bar">
-            Objectif individuel estimé : <strong>{compareMode.target}{compareMode.isPercent ? '%' : ''}</strong>
+            Objectif à atteindre : <strong>{compareMode.target}{compareMode.isPercent ? '%' : ''}</strong>
             </div>
-            <div style={{height: '400px', padding: '10px'}}>
+            <div style={{height: '420px', padding: '10px 20px'}}>
             <Bar
             data={{
                 labels: compareMode.data.map(d => d.name),
@@ -301,33 +300,30 @@ export default function MobileDashboard({ config }) {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: { padding: { right: 40 } }, // Marge pour éviter de tronquer les labels
                 plugins: {
                     legend: { display: false },
-                    datalabels: { // AFFICHAGE DU CHIFFRE DANS LA BARRE
+                    datalabels: {
                         anchor: 'end',
                         align: 'right',
+                        offset: 4,
                         color: '#1a1a1a',
-                        font: { weight: 'bold', size: 14 },
+                        font: { weight: 'bold', size: 13 },
                         formatter: (value) => value + (compareMode.isPercent ? '%' : '')
                     }
                 },
                 scales: {
                     x: { display: false, beginAtZero: true },
-                    y: { grid: { display: false }, ticks: { font: { size: 13, weight: 'bold' } } }
+                    y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } }
                 }
             }}
             />
-            </div>
-            <div className="legend-mini">
-            <span style={{color:'#10b981'}}>● Succès</span>
-            <span style={{color:'#f59e0b', margin:'0 15px'}}>● En cours</span>
-            <span style={{color:'#ef4444'}}>● Retard</span>
             </div>
             </div>
             </div>
         )}
 
-        {/* MODAL DÉTAILS VENDEUR (DESIGN PARFAIT) */}
+        {/* MODAL DÉTAILS VENDEUR : CORRECTION WRAPPING TEXTE */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
@@ -349,9 +345,9 @@ export default function MobileDashboard({ config }) {
                         <div key={famKey} style={{marginBottom: '10px'}}>
                         <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px', opacity: 0.8}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '2px 0'}}>
-                            <span style={{color: '#333'}}>{item.lib}</span>
-                            <span style={{fontWeight: 'bold', color: '#666'}}>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</span>
+                            <div key={idx} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12px', padding: '4px 0', borderBottom: '1px dashed #f0f0f0'}}>
+                            <span style={{color: '#333', flex: 1, paddingRight: '10px', wordBreak: 'break-word'}}>{item.lib}</span>
+                            <span style={{fontWeight: 'bold', color: '#666', whiteSpace: 'nowrap'}}>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</span>
                             </div>
                         ))}
                         </div>
