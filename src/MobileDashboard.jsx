@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import Papa from 'papaparse';
-import confetti from 'canvas-confetti';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
-    Trophy, Calendar, Clock, Receipt, RefreshCw, Target, TrendingDown
+    Calendar, Clock, Receipt, RefreshCw, Target, TrendingDown
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 
-// Note : Assurez-vous que ce composant existe ou remplacez par une span simple
+// Composant CountUp simple pour éviter les erreurs d'import externe
 const CountUp = ({ end, suffix = "" }) => <span>{end}{suffix}</span>;
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
@@ -226,7 +225,6 @@ export default function MobileDashboard({ config }) {
 
     return (
         <div className="modern-dashboard">
-        {/* BADGE CA CLIQUABLE */}
         <div className="header-glass">
         <div className="header-content">
         <div className="subtitle">Orange Perf</div>
@@ -241,7 +239,6 @@ export default function MobileDashboard({ config }) {
         </button>
         </div>
 
-        {/* MODAL R/O CA HT */}
         {caModal && (
             <div className="glass-overlay" onClick={() => setCaModal(false)}>
             <div className="glass-modal pop-in" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
@@ -334,7 +331,6 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL COMPARAISON ÉQUIPE */}
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
             <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
@@ -353,11 +349,19 @@ export default function MobileDashboard({ config }) {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: { padding: { right: 40, left: 10 } },
                 plugins: {
                     legend: { display: false },
-                    datalabels: { anchor: 'end', align: 'right', offset: 4, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') }
+                    datalabels: { anchor: 'end', align: 'right', offset: 8, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') }
                 },
-                scales: { x: { display: false, beginAtZero: true }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } }
+                scales: {
+                    x: {
+                        display: false,
+                        beginAtZero: true,
+                        suggestedMax: compareMode.data.length > 0 ? Math.max(...compareMode.data.map(d => d.val)) * 1.15 : 100
+                    },
+                    y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } }
+                }
             }}
             />
             </div>
@@ -365,7 +369,6 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        {/* MODAL DÉTAILS VENDEUR */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
