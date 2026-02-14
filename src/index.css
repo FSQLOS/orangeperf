@@ -1,149 +1,77 @@
-:root {
-  --orange-primary: #FF7900;
-  --dark-bg: #0f172a; /* Fond sombre pour éviter le flash blanc */
-  --glass-bg: rgba(255, 255, 255, 0.9);
-}
+/* --- index.css --- */
 
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
+/* Style global pour éviter les flashs */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--dark-bg);
-  color: #f8fafc;
-  overflow-x: hidden;
+  background-color: #0f172a; /* Noir bleuté MW2 */
+  font-family: -apple-system, sans-serif;
 }
 
-/* --- ANIMATION DE CHARGEMENT --- */
 .app-container {
   opacity: 0;
-  transition: opacity 0.5s ease-in-out;
+  transition: opacity 0.4s ease;
 }
 
 .app-container.loaded {
   opacity: 1;
 }
 
-.loading-screen {
-  position: fixed;
-  inset: 0;
-  background: #0f172a;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.ps5-loader {
-  width: 50px;
-  height: 50px;
-  border: 3px solid rgba(255, 121, 0, 0.2);
-  border-top-color: var(--orange-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-.loading-text {
-  color: var(--orange-primary);
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  font-size: 12px;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes spin { 100% { transform: rotate(360deg); } }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-/* --- DASHBOARD ELEMENTS --- */
-.modern-dashboard {
-  min-height: 100vh;
-  padding-bottom: 50px;
-  background-color: #f4f6fa;
-  color: #1a1a1a;
-}
-
-.header-glass {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  padding: 15px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-}
-
-.ca-badge {
-  background: #1a1a1a;
-  color: white;
-  padding: 8px 15px;
-  border-radius: 12px;
-  text-align: right;
-}
-
-.ca-label { display: block; font-size: 9px; text-transform: uppercase; opacity: 0.7; }
-.ca-val { font-size: 16px; font-weight: 800; }
-
-/* --- TROPHÉE PLAYSTATION PREMIER PLAN --- */
+/* --- LE TROPHÉE : PRIORITÉ MAXIMALE --- */
 .ps-trophy-container {
   position: fixed;
-  top: 30px;
+  top: 40px;
   left: 0;
   right: 0;
   display: flex;
   justify-content: center;
-  z-index: 10000;
+  /* On met le paquet sur le z-index */
+  z-index: 999999 !important;
   pointer-events: none;
 }
 
 .ps-trophy-card {
-  background: rgba(20, 20, 20, 0.95);
-  backdrop-filter: blur(15px);
-  border-radius: 50px;
-  padding: 12px 30px 12px 12px;
+  background: rgba(15, 15, 15, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 60px;
+  padding: 12px 35px 12px 15px;
   display: flex;
   align-items: center;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 20px rgba(255,215,0,0.3);
-  border: 1px solid rgba(255,255,255,0.1);
-  animation: psTrophyPop 4.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  box-shadow:
+  0 20px 50px rgba(0, 0, 0, 0.8),
+  0 0 30px rgba(255, 215, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: psTrophyPop 4.5s cubic-bezier(0.2, 1, 0.2, 1) forwards;
 }
 
 .ps-gold-circle {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #FFD700, #FFA500);
+  width: 55px;
+  height: 55px;
+  background: linear-gradient(135deg, #FFD700, #b8860b);
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-right: 15px;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  margin-right: 18px;
+  flex-shrink: 0;
 }
 
-.ps-trophy-user { font-size: 10px; color: #aaa; text-transform: uppercase; font-weight: 700; }
-.ps-trophy-title { font-size: 16px; color: #fff; font-weight: 900; }
-.ps-trophy-sub { font-size: 11px; color: #FFD700; font-style: italic; }
+.ps-trophy-text { display: flex; flex-direction: column; }
+.ps-trophy-user { font-size: 11px; color: #ffd700; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; }
+.ps-trophy-title { font-size: 18px; color: #fff; font-weight: 900; line-height: 1.2; }
+.ps-trophy-sub { font-size: 12px; color: #aaa; font-style: italic; }
 
 @keyframes psTrophyPop {
-  0% { transform: translateY(-150%) scale(0.8); opacity: 0; }
-  15% { transform: translateY(0) scale(1); opacity: 1; }
-  85% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(-150%) scale(0.9); opacity: 0; }
+  0% { transform: translateY(-200px) scale(0.7); opacity: 0; }
+  10% { transform: translateY(0) scale(1); opacity: 1; }
+  90% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-200px) scale(0.9); opacity: 0; }
 }
 
-/* --- AUTRES STYLES --- */
-.toggle-container { display: flex; background: #e2e8f0; margin: 15px 20px; padding: 4px; border-radius: 12px; }
-.toggle-btn { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 600; border-radius: 10px; color: #64748b; }
-.toggle-btn.active { background: white; color: #1a1a1a; }
-.global-scroll { display: flex; overflow-x: auto; padding: 0 20px 20px 20px; gap: 12px; }
-.stat-card { min-width: 100px; background: white; padding: 15px; border-radius: 20px; text-align: center; }
-.stat-value { font-size: 18px; font-weight: 800; }
-.card-label { font-size: 10px; font-weight: 600; color: #64748b; }
-.king-crown { position: absolute; top: -10px; right: -5px; font-size: 18px; }
+/* --- LE RESTE DU DASHBOARD --- */
+.modern-dashboard { background: #f4f6fa; min-height: 100vh; color: #1a1a1a; }
+.header-glass { position: sticky; top: 0; z-index: 1000; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
+.ca-badge { background: #1a1a1a; color: white; padding: 10px 18px; border-radius: 15px; text-align: right; }
+.glass-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 5000; display: flex; align-items: flex-end; }
+.glass-modal { background: white; width: 100%; border-radius: 30px 30px 0 0; padding: 25px; max-height: 85vh; overflow-y: auto; }
