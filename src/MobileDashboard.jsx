@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Papa from 'papaparse';
 import confetti from 'canvas-confetti';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
@@ -6,7 +6,7 @@ import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
-    Trophy, Calendar, Clock, Receipt, RefreshCw, Target, TrendingDown, Star
+    Trophy, Calendar, Clock, Receipt, RefreshCw, Target, TrendingDown, Star, Tag
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
@@ -16,26 +16,33 @@ import { CountUp } from './CountUp';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
 export default function MobileDashboard({ config }) {
+    // --- ÉTATS ---
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [statsMonth, setStatsMonth] = useState({});
     const [statsDay, setStatsDay] = useState({});
-    const [globalData, setGlobalData] = useState({});
     const [viewMode, setViewMode] = useState('month');
     const [selectedSeller, setSelectedSeller] = useState(null);
     const [compareMode, setCompareMode] = useState(null);
     const [caModal, setCaModal] = useState(false);
     const [teamMap, setTeamMap] = useState({});
-    const [activeTrophy, setActiveTrophy] = useState(null); // Pour l'animation trophée
+    const [activeTrophy, setActiveTrophy] = useState(null);
 
-    // --- DICTIONNAIRE DES TITRES DRÔLES ---
+    // Initialisation sécurisée pour éviter le crash "counts undefined"
+    const [globalData, setGlobalData] = useState({
+        ca: 0,
+        assur: 0,
+        counts: { Terminaux:0, Mobile:0, Broadband:0, MIG:0, MEV:0, MP:0, Cyber:0 }
+    });
+
+    // --- CONFIGURATION ---
     const TROPHY_TITLES = {
         TxAssur: { title: "L'Ange Gardien du Stock", sub: "Personne ne sort sans filet ici !" },
         Terminaux: { title: "Le Magnat du Silicium", sub: "Il vend plus de dalles que Saint-Gobain." },
         Mobile: { title: "Le Dealer de Gigas", sub: "La SIM coule dans ses veines." },
         Broadband: { title: "L'Amiral du Wi-Fi", sub: "Il capte la fibre même au fond de la cave." },
         MIG: { title: "L'Éclair de la Fibre", sub: "Migration plus rapide que son ombre." },
-        MEV: { title: "Le MacGyver des Options", sub: "Il te rajoute du divertissement en 2 secondes." },
+        MEV: { title: "Le MacGyver des Options", sub: "Il rajoute du divertissement en 2 secondes." },
         MP: { title: "Le Domoticien Suprême", sub: "Son grille-pain est déjà connecté à sa montre." },
         Cyber: { title: "Le Videur du Web", sub: "Hacker-proof. Antivirus humain." }
     };
@@ -67,6 +74,13 @@ export default function MobileDashboard({ config }) {
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
+    // --- FONCTIONS UTILS ---
+    const playTrophySound = () => {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log("Audio bloqué par le navigateur"));
+    };
+
     const getMonthInfo = () => {
         const d = new Date();
         const now = d.getDate();
@@ -94,16 +108,17 @@ export default function MobileDashboard({ config }) {
         return [`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, `${d.getDate()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`];
     };
 
-    const fetchData = () => {
+    // --- LOGIQUE DE DONNÉES ---
+    const fetchData = useCallback(() => {
         setRefreshing(true);
         const t = new Date().getTime();
         const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
         fetch(finalUrl).then(r => r.text()).then(t => {
             Papa.parse(t, { header: true, skipEmptyLines: true, complete: r => { processData(r.data); setRefreshing(false); }});
         }).catch(() => setRefreshing(false));
-    };
+    }, [config.url]);
 
-    useEffect(() => { fetchData(); }, [config.url]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
     const processData = (data) => {
         let currentTeamMap = {};
@@ -175,10 +190,11 @@ export default function MobileDashboard({ config }) {
         setLoading(false);
     };
 
-    // --- LOGIQUE COMPARAISON + TROPHÉE ---
+    // --- LOGIQUE COMPARAISON & TROPHÉE ---
     const openGlobalComparison = (category) => {
         const stats = viewMode === 'month' ? statsMonth : statsDay;
         const nbVendeurs = Object.keys(teamMap).length || 1;
+
         let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((config.objectifs[category] || 0) / nbVendeurs) : Math.ceil(((config.objectifs[category] || 0) / 25) / nbVendeurs) || 1);
 
         const data = Object.keys(stats).map(code => {
@@ -190,15 +206,15 @@ export default function MobileDashboard({ config }) {
 
         setCompareMode({ category, data, isPercent: category === 'TxAssur', target: indivTarget });
 
-        // DÉCLENCHEMENT TROPHÉE POUR LE 1er
+        // Trophée pour le leader
         if (data[0] && data[0].val > 0) {
+            playTrophySound();
             setActiveTrophy({
                 name: data[0].name,
                 category: category,
                 title: TROPHY_TITLES[category]?.title || "Le Champion",
-                sub: TROPHY_TITLES[category]?.sub || "Inarrêtable aujourd'hui."
+                sub: TROPHY_TITLES[category]?.sub || "En route pour le record."
             });
-            // Auto-fermeture après 4 secondes
             setTimeout(() => setActiveTrophy(null), 4000);
         }
     };
@@ -216,6 +232,7 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
+    // Pilotage CA R/O
     const mInfo = getMonthInfo();
     const objTotalCA = config.objectifs['CA'] || 0;
     const prorataTarget = Math.round(objTotalCA * mInfo.pct);
@@ -223,16 +240,19 @@ export default function MobileDashboard({ config }) {
     const isAhead = diffCA >= 0;
     const landingCA = Math.round(globalData.ca / (mInfo.now || 1) * mInfo.total);
 
+    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Initialisation du Dashboard...</p></div>;
+
+    const currentStats = viewMode === 'month' ? statsMonth : statsDay;
+    const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
+
     return (
         <div className="modern-dashboard">
-        {/* --- ANIMATION TROPHÉE STYLE PLAYSTATION --- */}
+        {/* NOTIFICATION TROPHÉE */}
         {activeTrophy && (
             <div className="ps-trophy-container">
             <div className="ps-trophy-card">
             <div className="ps-trophy-icon">
-            <div className="ps-gold-circle">
-            <Trophy size={24} color="#FFD700" fill="#FFD700" />
-            </div>
+            <div className="ps-gold-circle"><Trophy size={24} color="#FFD700" fill="#FFD700" /></div>
             </div>
             <div className="ps-trophy-text">
             <div className="ps-trophy-user">{activeTrophy.name} a obtenu un trophée !</div>
@@ -249,7 +269,7 @@ export default function MobileDashboard({ config }) {
         <div className="subtitle">Orange Perf</div>
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
-        <div className="ca-badge" onClick={() => setCaModal(true)}>
+        <div className="ca-badge" onClick={() => setCaModal(true)} style={{cursor: 'pointer'}}>
         <span className="ca-label">CA ACC. HT</span>
         <span className="ca-val"><CountUp end={Math.round(globalData.ca)} suffix="€" /></span>
         </div>
@@ -258,7 +278,64 @@ export default function MobileDashboard({ config }) {
         </button>
         </div>
 
-        {/* MODAL CA R/O */}
+        {/* TOGGLE JOUR/MOIS */}
+        <div className="toggle-container">
+        <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}><Clock size={14} /> Jour</div>
+        <div className={`toggle-btn ${viewMode === 'month' ? 'active' : ''}`} onClick={() => setViewMode('month')}><Calendar size={14} /> Mois</div>
+        </div>
+
+        {/* GRILLE DE KPI */}
+        <div className="scroll-content">
+        <div className="section-label">🎯 ÉQUIPE</div>
+        <div className="global-scroll">
+        <div className="stat-card featured" onClick={() => openGlobalComparison('TxAssur')}>
+        <div className="circular-wrap">
+        <CircularProgressbar value={globalData.assur} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })} />
+        </div>
+        <div className="card-label">Taux Assur <BarChart2 size={12} style={{marginLeft: 4, opacity: 0.7}}/></div>
+        </div>
+        {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
+            const style = getCategoryStyle(key);
+            const count = viewMode === 'month' ? (globalData.counts ? globalData.counts[key] : 0) : Object.values(currentStats).reduce((acc, s) => acc + (s[key] || 0), 0);
+            return (
+                <div key={key} className="stat-card" onClick={() => openGlobalComparison(key)}>
+                <div className="icon-badge" style={{ background: style.grad }}>{style.icon}</div>
+                <div className="stat-value">{count}</div>
+                <div className="card-label">{style.label} <BarChart2 size={10} style={{opacity: 0.5}}/></div>
+                </div>
+            )
+        })}
+        </div>
+
+        {/* CLASSEMENT VENDEURS */}
+        <div className="section-label">🏆 CLASSEMENT CA ACC</div>
+        <div className="team-list">
+        {sortedTeamCodes.map((code, index) => {
+            const s = currentStats[code];
+            if (s.CA === 0 && s.Terminaux === 0) return null;
+            const name = teamMap[code] || code;
+            return (
+                <div key={code} className={`seller-card rank-${index + 1}`} onClick={() => setSelectedSeller({ code, name, data: s })}>
+                <div className="rank-badge">{index + 1}</div>
+                <div className="seller-avatar">
+                {name[0]}
+                {index === 0 && <span className="king-crown">👑</span>}
+                </div>
+                <div className="seller-info">
+                <div className="seller-name">{name}</div>
+                <div className="seller-kpi-row">
+                <span className="kpi-pill">📱 {s.Terminaux}</span>
+                <span className="kpi-pill">🛡️ {s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0}%</span>
+                </div>
+                </div>
+                <div className="seller-ca"><strong>{Math.round(s.CA)}€</strong> <ChevronRight size={14} /></div>
+                </div>
+            )
+        })}
+        </div>
+        </div>
+
+        {/* MODAL CA R/O (Pilotage Boutique) */}
         {caModal && (
             <div className="glass-overlay" onClick={() => setCaModal(false)}>
             <div className="glass-modal pop-in" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
@@ -292,58 +369,7 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        <div className="toggle-container">
-        <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}><Clock size={14} /> Jour</div>
-        <div className={`toggle-btn ${viewMode === 'month' ? 'active' : ''}`} onClick={() => setViewMode('month')}><Calendar size={14} /> Mois</div>
-        </div>
-
-        <div className="scroll-content">
-        <div className="section-label">🎯 ÉQUIPE</div>
-        <div className="global-scroll">
-        <div className="stat-card featured" onClick={() => openGlobalComparison('TxAssur')}>
-        <div className="circular-wrap">
-        <CircularProgressbar value={globalData.assur} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })} />
-        </div>
-        <div className="card-label">Taux Assur <BarChart2 size={12} style={{marginLeft: 4, opacity: 0.7}}/></div>
-        </div>
-        {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
-            const style = getCategoryStyle(key);
-            const count = viewMode === 'month' ? globalData.counts[key] : Object.values(currentStats).reduce((acc, s) => acc + s[key], 0);
-            return (
-                <div key={key} className="stat-card" onClick={() => openGlobalComparison(key)}>
-                <div className="icon-badge" style={{ background: style.grad }}>{style.icon}</div>
-                <div className="stat-value">{count}</div>
-                <div className="card-label">{style.label} <BarChart2 size={10} style={{opacity: 0.5}}/></div>
-                </div>
-            )
-        })}
-        </div>
-
-        <div className="section-label">🏆 CLASSEMENT</div>
-        <div className="team-list">
-        {sortedTeamCodes.map((code, index) => {
-            const s = currentStats[code];
-            if (s.CA === 0 && s.Terminaux === 0) return null;
-            const name = teamMap[code] || code;
-            return (
-                <div key={code} className={`seller-card rank-${index + 1}`} onClick={() => setSelectedSeller({ code, name, data: s })}>
-                <div className="rank-badge">{index + 1}</div>
-                <div className="seller-avatar">{name[0]} {index === 0 && <span className="king-crown">👑</span>}</div>
-                <div className="seller-info">
-                <div className="seller-name">{name}</div>
-                <div className="seller-kpi-row">
-                <span className="kpi-pill">📱 {s.Terminaux}</span>
-                <span className="kpi-pill">🛡️ {s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0}%</span>
-                </div>
-                </div>
-                <div className="seller-ca"><strong>{Math.round(s.CA)}€</strong> <ChevronRight size={14} /></div>
-                </div>
-            )
-        })}
-        </div>
-        </div>
-
-        {/* MODAL COMPARAISON */}
+        {/* MODAL COMPARAISON ÉQUIPE (Graphique) */}
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
             <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
@@ -351,34 +377,70 @@ export default function MobileDashboard({ config }) {
             <h2>{compareMode.category === 'TxAssur' ? 'Taux Assurance (%)' : `Volume ${compareMode.category}`}</h2>
             <div className="close-btn" onClick={() => setCompareMode(null)}><X /></div>
             </div>
-            <div className="modal-info-bar">Objectif : <strong>{compareMode.target}{compareMode.isPercent ? '%' : ''}</strong></div>
-            <div style={{height: '380px', padding: '10px'}}><Bar data={{ labels: compareMode.data.map(d => d.name), datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 8, barThickness: 28 }] }} options={{ indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', offset: 4, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') } }, scales: { x: { display: false, beginAtZero: true }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } } }} /></div>
+            <div className="modal-info-bar">Objectif individuel : <strong>{compareMode.target}{compareMode.isPercent ? '%' : ''}</strong></div>
+            <div style={{height: '400px', padding: '10px 20px'}}>
+            <Bar
+            data={{
+                labels: compareMode.data.map(d => d.name),
+                         datasets: [{
+                             data: compareMode.data.map(d => d.val),
+                         backgroundColor: compareMode.data.map(d => d.color),
+                         borderRadius: 8,
+                         barThickness: 28
+                         }]
+            }}
+            options={{
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 40 } },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'right',
+                        offset: 4,
+                        color: '#1a1a1a',
+                        font: { weight: 'bold', size: 13 },
+                        formatter: (v) => v + (compareMode.isPercent ? '%' : '')
+                    }
+                },
+                scales: {
+                    x: { display: false, beginAtZero: true },
+                    y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } }
+                }
+            }}
+            />
+            </div>
             </div>
             </div>
         )}
 
-        {/* MODAL DÉTAILS VENDEUR */}
+        {/* MODAL DÉTAILS VENDEUR (Tickets par famille) */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>{selectedSeller.name}</h2><div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div></div>
+            <div className="modal-header">
+            <h2>{selectedSeller.name}</h2>
+            <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
+            </div>
             <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
-                <div key={id} className="ticket-group-card">
-                <div className="ticket-header">
-                <span style={{fontWeight:'bold'}}><Receipt size={14}/> Ticket #{id}</span>
-                <span style={{fontSize:'11px'}}>{ticket.date}</span>
+                <div key={id} className="ticket-group-card" style={{background: '#fff', borderRadius: '15px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
+                <div className="ticket-header" style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '10px'}}>
+                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#666'}}><Receipt size={14} style={{verticalAlign: 'middle', marginRight: '5px'}}/> Ticket #{id}</span>
+                <span style={{fontSize: '11px', color: '#999'}}>{ticket.date}</span>
                 </div>
                 {Object.entries(FAMILIES).map(([famKey, famInfo]) => {
                     const itemsInFam = ticket.items.filter(i => i.fam === famKey);
                     if (itemsInFam.length === 0) return null;
                     return (
-                        <div key={famKey} style={{marginBottom:'10px'}}>
-                        <div style={{fontSize:'10px', fontWeight:'bold', color:famInfo.color, marginBottom:'4px'}}>{famInfo.label}</div>
+                        <div key={famKey} style={{marginBottom: '10px'}}>
+                        <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px', opacity: 0.8}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} className="item-row-minimal">
-                            <span>{item.lib}</span>
-                            <strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong>
+                            <div key={idx} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12px', padding: '4px 0', borderBottom: '1px dashed #f0f0f0'}}>
+                            <span style={{color: '#333', flex: 1, paddingRight: '10px', wordBreak: 'break-word'}}>{item.lib}</span>
+                            <span style={{fontWeight: 'bold', color: '#666', whiteSpace: 'nowrap'}}>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</span>
                             </div>
                         ))}
                         </div>
