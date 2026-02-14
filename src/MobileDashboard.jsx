@@ -6,9 +6,13 @@ import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
-    Trophy, Calendar, Clock, Receipt, RefreshCw, Tag
+    Trophy, Calendar, Clock, Receipt, RefreshCw
 } from 'lucide-react';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { CountUp } from './CountUp';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function MobileDashboard({ config }) {
     const [loading, setLoading] = useState(true);
@@ -19,20 +23,20 @@ export default function MobileDashboard({ config }) {
     const [viewMode, setViewMode] = useState('month');
     const [bigWin, setBigWin] = useState(null);
     const [selectedSeller, setSelectedSeller] = useState(null);
+    const [compareMode, setCompareMode] = useState(null); // Pour le graphique équipe
     const [teamMap, setTeamMap] = useState({});
 
-    // --- CONFIGURATION VISUELLE DES FAMILLES ---
     const FAMILIES = {
-        BOX: { label: "LIVEBOX", color: "#FF7900", bg: "#FFF5EC" },
-        APPLE: { label: "APPLE", color: "#000000", bg: "#F5F5F7" },
-        SAMSUNG: { label: "SAMSUNG", color: "#034EA2", bg: "#E8F0FE" },
-        DORO: { label: "DORO", color: "#E6007E", bg: "#FDF2F8" },
-        XIAOMI: { label: "XIAOMI / AUTRES", color: "#FF6700", bg: "#FFF4ED" },
-        PROT: { label: "PROTECTION", color: "#059669", bg: "#ECFDF5" },
-        ACC: { label: "ACCESSOIRES", color: "#4b5563", bg: "#F3F4F6" },
-        TRANSFERTS: { label: "TRANSFERTS", color: "#4F46E5", bg: "#EEF2FF" },
-        SERV: { label: "SERVICES / ASSUR", color: "#9333EA", bg: "#FAF5FF" },
-        AUTRE: { label: "DIVERS", color: "#6B7280", bg: "#F9FAFB" }
+        BOX: { label: "🌐 LIVEBOX", color: "#527EDB" },
+        APPLE: { label: "🍎 APPLE", color: "#1a1a1a" },
+        SAMSUNG: { label: "🪐 SAMSUNG", color: "#034EA2" },
+        DORO: { label: "👴 DORO", color: "#E6007E" },
+        XIAOMI: { label: "📱 XIAOMI / AUTRES", color: "#FF6700" },
+        PROT: { label: "🛡️ PROTECTION", color: "#059669" },
+        ACC: { label: "🎧 ACCESSOIRES", color: "#4b5563" },
+        TRANSFERTS: { label: "📲 TRANSFERTS", color: "#4F46E5" },
+        SERV: { label: "✨ SERVICES / ASSUR", color: "#FF7900" },
+        AUTRE: { label: "📦 DIVERS", color: "#9ca3af" }
     };
 
     const CODES = {
@@ -158,6 +162,23 @@ export default function MobileDashboard({ config }) {
         setLoading(false);
     };
 
+    // --- FONCTION DE COMPARAISON GLOBALE ---
+    const openGlobalComparison = (category) => {
+        const stats = viewMode === 'month' ? statsMonth : statsDay;
+        const data = Object.keys(stats).map(code => {
+            const s = stats[code];
+            let val = 0;
+            if (category === 'TxAssur') {
+                val = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0;
+            } else {
+                val = s[category];
+            }
+            return { name: teamMap[code] || code, val };
+        }).sort((a, b) => b.val - a.val);
+
+        setCompareMode({ category, data, isPercent: category === 'TxAssur' });
+    };
+
     const getCategoryStyle = (cat) => {
         const styles = {
             'Terminaux': { icon: <Smartphone size={16} />, color: '#1a1a1a', label: 'Terminaux', grad: 'linear-gradient(135deg, #e0e0e0, #ffffff)' },
@@ -209,28 +230,28 @@ export default function MobileDashboard({ config }) {
         </div>
 
         <div className="scroll-content">
-        <div className="section-label">🎯 ÉQUIPE</div>
+        <div className="section-label">🎯 ÉQUIPE (Cliquer pour comparer)</div>
         <div className="global-scroll">
-        <div className="stat-card featured">
+        <div className="stat-card featured" onClick={() => openGlobalComparison('TxAssur')}>
         <div className="circular-wrap">
         <CircularProgressbar value={globalData.assur} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })} />
         </div>
-        <div className="card-label">Taux Assur</div>
+        <div className="card-label">Taux Assur <BarChart2 size={12} style={{marginLeft: 4, opacity: 0.7}}/></div>
         </div>
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
             const count = viewMode === 'month' ? globalData.counts[key] : Object.values(currentStats).reduce((acc, s) => acc + s[key], 0);
             return (
-                <div key={key} className="stat-card">
+                <div key={key} className="stat-card" onClick={() => openGlobalComparison(key)}>
                 <div className="icon-badge" style={{ background: style.grad }}>{style.icon}</div>
                 <div className="stat-value">{count}</div>
-                <div className="card-label">{style.label}</div>
+                <div className="card-label">{style.label} <BarChart2 size={10} style={{opacity: 0.5}}/></div>
                 </div>
             )
         })}
         </div>
 
-        <div className="section-label">🏆 CLASSEMENT CA ACC</div>
+        <div className="section-label">🏆 CLASSEMENT</div>
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
             const s = currentStats[code];
@@ -255,50 +276,72 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL DÉTAILLÉ REDESSINÉ */}
+        {/* MODAL COMPARATIF ÉQUIPE */}
+        {compareMode && (
+            <div className="glass-overlay" onClick={() => setCompareMode(null)}>
+            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'70vh'}} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+            <h2>Performance : {compareMode.category === 'TxAssur' ? 'Taux Assurance' : compareMode.category}</h2>
+            <div className="close-btn" onClick={() => setCompareMode(null)}><X /></div>
+            </div>
+            <div style={{height: '350px', padding: '10px'}}>
+            <Bar
+            data={{
+                labels: compareMode.data.map(d => d.name),
+                         datasets: [{
+                             label: compareMode.category,
+                             data: compareMode.data.map(d => d.val),
+                         backgroundColor: '#FF7900',
+                         borderRadius: 6,
+                         barThickness: 25
+                         }]
+            }}
+            options={{
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { beginAtZero: true, grid: { display: false }, ticks: { callback: v => v + (compareMode.isPercent ? '%' : '') } },
+                         y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } }
+                }
+            }}
+            />
+            </div>
+            </div>
+            </div>
+        )}
+
+        {/* MODAL DÉTAILS VENDEUR (DESIGN PARFAIT) */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header-modern">
-            <div className="modal-header-left">
-            <div className="modal-avatar-circle">{selectedSeller.name[0]}</div>
-            <div className="modal-title-wrap">
+            <div className="modal-header">
             <h2>{selectedSeller.name}</h2>
-            <p>Détail des ventes • {viewMode === 'month' ? 'Mensuel' : 'Journalier'}</p>
+            <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
             </div>
-            </div>
-            <div className="close-btn-modern" onClick={() => setSelectedSeller(null)}><X size={24}/></div>
-            </div>
-
-            <div className="modal-scroll-modern">
+            <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
-                <div key={id} className="ticket-card-new">
-                <div className="ticket-card-header">
-                <div className="ticket-id"><Receipt size={16}/> Ticket <span>#{id}</span></div>
-                <div className="ticket-date">{ticket.date}</div>
+                <div key={id} className="ticket-group-card" style={{background: '#fff', borderRadius: '15px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
+                <div className="ticket-header" style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '10px'}}>
+                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#666'}}><Receipt size={14} style={{verticalAlign: 'middle', marginRight: '5px'}}/> Ticket #{id}</span>
+                <span style={{fontSize: '11px', color: '#999'}}>{ticket.date}</span>
                 </div>
-                <div className="ticket-card-body">
                 {Object.entries(FAMILIES).map(([famKey, famInfo]) => {
                     const itemsInFam = ticket.items.filter(i => i.fam === famKey);
                     if (itemsInFam.length === 0) return null;
                     return (
-                        <div key={famKey} className="fam-section-modern">
-                        <div className="fam-badge-modern" style={{ color: famInfo.color, backgroundColor: famInfo.bg }}>
-                        <Tag size={10} style={{marginRight: 4}}/> {famInfo.label}
-                        </div>
-                        <div className="fam-items-wrap">
+                        <div key={famKey} style={{marginBottom: '10px'}}>
+                        <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px', opacity: 0.8}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} className="item-row-modern">
-                            <span className="item-lib">{item.lib}</span>
-                            <div className="item-separator"></div>
-                            <span className="item-price-modern">{item.ca > 0 ? Math.round(item.ca) + '€' : '--'}</span>
+                            <div key={idx} style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '2px 0'}}>
+                            <span style={{color: '#333'}}>{item.lib}</span>
+                            <span style={{fontWeight: 'bold', color: '#666'}}>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</span>
                             </div>
                         ))}
                         </div>
-                        </div>
                     )
                 })}
-                </div>
                 </div>
             ))}
             </div>
