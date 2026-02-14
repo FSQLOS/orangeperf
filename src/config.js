@@ -9,6 +9,7 @@ export const config = {
     // 2. Les Objectifs GLOBAUX de la boutique pour le mois
     // Le site divisera ces chiffres par le nombre de vendeurs automatiquement
     objectifs: {
+        CA: 21760,
         Terminaux: 312,
         Mobile: 127,   // Forfaits
         Broadband: 69, // Internet / Box

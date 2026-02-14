@@ -1,68 +1,100 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* --- ANIMATION TROPHÉE STYLE PLAYSTATION --- */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
+.ps-trophy-container {
+  position: fixed;
+  top: 20px;
+  left: 0;
+  right: 0;
   display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none; /* Pour ne pas bloquer les clics en dessous */
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+.ps-trophy-card {
+  background: rgba(18, 18, 18, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 50px; /* Bords ultra-arrondis style PS5 */
+  padding: 8px 25px 8px 10px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
+  0 0 15px rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  /* L'animation qui fait descendre, attend, et remonte */
+  animation: psTrophySlide 4s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.ps-trophy-icon {
+  margin-right: 15px;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.ps-gold-circle {
+  width: 45px;
+  height: 45px;
+  background: radial-gradient(circle, #333 0%, #111 100%);
+  border: 2px solid #ffd700;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 0 10px #ffd700;
+}
+
+.ps-trophy-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.ps-trophy-user {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #aaa;
+  letter-spacing: 1px;
+  font-weight: bold;
+}
+
+.ps-trophy-title {
+  font-size: 15px;
+  color: #fff;
+  font-weight: 800;
+  margin-top: -2px;
+}
+
+.ps-trophy-sub {
+  font-size: 11px;
+  color: #ffd700;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+/* --- KEYFRAMES --- */
+
+@keyframes psTrophySlide {
+  0% {
+    transform: translateY(-150px) scale(0.5);
+    opacity: 0;
   }
-  a:hover {
-    color: #747bff;
+  10% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
   }
-  button {
-    background-color: #f9f9f9;
+  90% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
   }
+  100% {
+    transform: translateY(-150px) scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* Petit bonus : Couronne pour le King du classement */
+.king-crown {
+  position: absolute;
+  top: -10px;
+  right: -5px;
+  font-size: 18px;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
 }

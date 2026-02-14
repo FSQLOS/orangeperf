@@ -6,7 +6,7 @@ import 'react-circular-progressbar/dist/styles.css';
 import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
-    Trophy, Calendar, Clock, Receipt, RefreshCw, Tag
+    Trophy, Calendar, Clock, Receipt, RefreshCw, Target, TrendingDown, Star
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
@@ -22,10 +22,23 @@ export default function MobileDashboard({ config }) {
     const [statsDay, setStatsDay] = useState({});
     const [globalData, setGlobalData] = useState({});
     const [viewMode, setViewMode] = useState('month');
-    const [bigWin, setBigWin] = useState(null);
     const [selectedSeller, setSelectedSeller] = useState(null);
     const [compareMode, setCompareMode] = useState(null);
+    const [caModal, setCaModal] = useState(false);
     const [teamMap, setTeamMap] = useState({});
+    const [activeTrophy, setActiveTrophy] = useState(null); // Pour l'animation trophée
+
+    // --- DICTIONNAIRE DES TITRES DRÔLES ---
+    const TROPHY_TITLES = {
+        TxAssur: { title: "L'Ange Gardien du Stock", sub: "Personne ne sort sans filet ici !" },
+        Terminaux: { title: "Le Magnat du Silicium", sub: "Il vend plus de dalles que Saint-Gobain." },
+        Mobile: { title: "Le Dealer de Gigas", sub: "La SIM coule dans ses veines." },
+        Broadband: { title: "L'Amiral du Wi-Fi", sub: "Il capte la fibre même au fond de la cave." },
+        MIG: { title: "L'Éclair de la Fibre", sub: "Migration plus rapide que son ombre." },
+        MEV: { title: "Le MacGyver des Options", sub: "Il te rajoute du divertissement en 2 secondes." },
+        MP: { title: "Le Domoticien Suprême", sub: "Son grille-pain est déjà connecté à sa montre." },
+        Cyber: { title: "Le Videur du Web", sub: "Hacker-proof. Antivirus humain." }
+    };
 
     const FAMILIES = {
         BOX: { label: "🌐 LIVEBOX", color: "#527EDB" },
@@ -53,6 +66,13 @@ export default function MobileDashboard({ config }) {
     const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE"];
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
+
+    const getMonthInfo = () => {
+        const d = new Date();
+        const now = d.getDate();
+        const total = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        return { now, total, pct: now / total };
+    };
 
     const getFamily = (lib, code) => {
         const l = lib.toUpperCase();
@@ -155,38 +175,32 @@ export default function MobileDashboard({ config }) {
         setLoading(false);
     };
 
-    // --- LOGIQUE DE COMPARAISON RÉVISÉE ---
+    // --- LOGIQUE COMPARAISON + TROPHÉE ---
     const openGlobalComparison = (category) => {
         const stats = viewMode === 'month' ? statsMonth : statsDay;
         const nbVendeurs = Object.keys(teamMap).length || 1;
-
-        let indivTarget = 0;
-        // Correction ici : Objectif fixe de 42% pour le taux assurance
-        if (category === 'TxAssur') {
-            indivTarget = 42;
-        } else if (viewMode === 'month') {
-            indivTarget = Math.ceil((config.objectifs[category] || 0) / nbVendeurs);
-        } else {
-            indivTarget = Math.ceil(((config.objectifs[category] || 0) / 25) / nbVendeurs) || 1;
-        }
+        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((config.objectifs[category] || 0) / nbVendeurs) : Math.ceil(((config.objectifs[category] || 0) / 25) / nbVendeurs) || 1);
 
         const data = Object.keys(stats).map(code => {
             const s = stats[code];
             let val = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
-
-            let color = '#ef4444';
-        if (category === 'TxAssur') {
-            if (val >= 42) color = '#10b981';
-            else if (val >= 30) color = '#f59e0b';
-        } else {
-            if (val >= indivTarget) color = '#10b981';
-            else if (val >= indivTarget / 2) color = '#f59e0b';
-        }
-
-        return { name: teamMap[code] || code, val, color };
+            let color = (val >= indivTarget) ? '#10b981' : (val >= indivTarget / 2 ? '#f59e0b' : '#ef4444');
+            return { name: teamMap[code] || code, val, color };
         }).sort((a, b) => b.val - a.val);
 
         setCompareMode({ category, data, isPercent: category === 'TxAssur', target: indivTarget });
+
+        // DÉCLENCHEMENT TROPHÉE POUR LE 1er
+        if (data[0] && data[0].val > 0) {
+            setActiveTrophy({
+                name: data[0].name,
+                category: category,
+                title: TROPHY_TITLES[category]?.title || "Le Champion",
+                sub: TROPHY_TITLES[category]?.sub || "Inarrêtable aujourd'hui."
+            });
+            // Auto-fermeture après 4 secondes
+            setTimeout(() => setActiveTrophy(null), 4000);
+        }
     };
 
     const getCategoryStyle = (cat) => {
@@ -202,26 +216,81 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
-    if (loading) return <div className="loading-screen"><div className="loader"></div><p>Mise à jour...</p></div>;
-
-    const currentStats = viewMode === 'month' ? statsMonth : statsDay;
-    const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
+    const mInfo = getMonthInfo();
+    const objTotalCA = config.objectifs['CA'] || 0;
+    const prorataTarget = Math.round(objTotalCA * mInfo.pct);
+    const diffCA = Math.round(globalData.ca - prorataTarget);
+    const isAhead = diffCA >= 0;
+    const landingCA = Math.round(globalData.ca / (mInfo.now || 1) * mInfo.total);
 
     return (
         <div className="modern-dashboard">
+        {/* --- ANIMATION TROPHÉE STYLE PLAYSTATION --- */}
+        {activeTrophy && (
+            <div className="ps-trophy-container">
+            <div className="ps-trophy-card">
+            <div className="ps-trophy-icon">
+            <div className="ps-gold-circle">
+            <Trophy size={24} color="#FFD700" fill="#FFD700" />
+            </div>
+            </div>
+            <div className="ps-trophy-text">
+            <div className="ps-trophy-user">{activeTrophy.name} a obtenu un trophée !</div>
+            <div className="ps-trophy-title">{activeTrophy.title}</div>
+            <div className="ps-trophy-sub">{activeTrophy.sub}</div>
+            </div>
+            </div>
+            </div>
+        )}
+
+        {/* HEADER */}
         <div className="header-glass">
         <div className="header-content">
         <div className="subtitle">Orange Perf</div>
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
-        <div className="ca-badge">
+        <div className="ca-badge" onClick={() => setCaModal(true)}>
         <span className="ca-label">CA ACC. HT</span>
-        <span className="ca-val">{Math.round(globalData.ca)}€</span>
+        <span className="ca-val"><CountUp end={Math.round(globalData.ca)} suffix="€" /></span>
         </div>
         <button className={`refresh-btn ${refreshing ? 'spinning' : ''}`} onClick={fetchData}>
         <RefreshCw size={20} />
         </button>
         </div>
+
+        {/* MODAL CA R/O */}
+        {caModal && (
+            <div className="glass-overlay" onClick={() => setCaModal(false)}>
+            <div className="glass-modal pop-in" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
+            <div className="modal-header">
+            <h2>Performance CA HT</h2>
+            <div className="close-btn" onClick={() => setCaModal(false)}><X /></div>
+            </div>
+            <div className="ro-container">
+            <div className="ro-main-stat">
+            <div className="ro-label">Réalisé au {mInfo.now} du mois</div>
+            <div className="ro-value">{Math.round(globalData.ca)} €</div>
+            </div>
+            <div className="ro-grid">
+            <div className="ro-card">
+            <div className="ro-icon"><Target size={18} color="#666"/></div>
+            <div className="ro-sublabel">Objectif Prorata</div>
+            <div className="ro-subval">{prorataTarget} €</div>
+            </div>
+            <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}>
+            <div className="ro-icon">{isAhead ? <TrendingUp size={18} color="#10b981"/> : <TrendingDown size={18} color="#ef4444"/>}</div>
+            <div className="ro-sublabel">Écart R/O</div>
+            <div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div>
+            </div>
+            </div>
+            <div className="ro-footer-card">
+            <div className="ro-footer-item"><span>Obj. Total</span><strong>{objTotalCA} €</strong></div>
+            <div className="ro-footer-item"><span>Atterrissage</span><strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong></div>
+            </div>
+            </div>
+            </div>
+            </div>
+        )}
 
         <div className="toggle-container">
         <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}><Clock size={14} /> Jour</div>
@@ -259,7 +328,7 @@ export default function MobileDashboard({ config }) {
             return (
                 <div key={code} className={`seller-card rank-${index + 1}`} onClick={() => setSelectedSeller({ code, name, data: s })}>
                 <div className="rank-badge">{index + 1}</div>
-                <div className="seller-avatar">{name[0]}</div>
+                <div className="seller-avatar">{name[0]} {index === 0 && <span className="king-crown">👑</span>}</div>
                 <div className="seller-info">
                 <div className="seller-name">{name}</div>
                 <div className="seller-kpi-row">
@@ -274,80 +343,42 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL COMPARATIF : CORRECTION AFFICHAGE TRONQUÉ */}
+        {/* MODAL COMPARAISON */}
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
-            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'85vh'}} onClick={e => e.stopPropagation()}>
+            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
             <h2>{compareMode.category === 'TxAssur' ? 'Taux Assurance (%)' : `Volume ${compareMode.category}`}</h2>
             <div className="close-btn" onClick={() => setCompareMode(null)}><X /></div>
             </div>
-            <div className="modal-info-bar">
-            Objectif à atteindre : <strong>{compareMode.target}{compareMode.isPercent ? '%' : ''}</strong>
-            </div>
-            <div style={{height: '420px', padding: '10px 20px'}}>
-            <Bar
-            data={{
-                labels: compareMode.data.map(d => d.name),
-                         datasets: [{
-                             data: compareMode.data.map(d => d.val),
-                         backgroundColor: compareMode.data.map(d => d.color),
-                         borderRadius: 8,
-                         barThickness: 28
-                         }]
-            }}
-            options={{
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { right: 40 } }, // Marge pour éviter de tronquer les labels
-                plugins: {
-                    legend: { display: false },
-                    datalabels: {
-                        anchor: 'end',
-                        align: 'right',
-                        offset: 4,
-                        color: '#1a1a1a',
-                        font: { weight: 'bold', size: 13 },
-                        formatter: (value) => value + (compareMode.isPercent ? '%' : '')
-                    }
-                },
-                scales: {
-                    x: { display: false, beginAtZero: true },
-                    y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } }
-                }
-            }}
-            />
-            </div>
+            <div className="modal-info-bar">Objectif : <strong>{compareMode.target}{compareMode.isPercent ? '%' : ''}</strong></div>
+            <div style={{height: '380px', padding: '10px'}}><Bar data={{ labels: compareMode.data.map(d => d.name), datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 8, barThickness: 28 }] }} options={{ indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', offset: 4, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') } }, scales: { x: { display: false, beginAtZero: true }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } } }} /></div>
             </div>
             </div>
         )}
 
-        {/* MODAL DÉTAILS VENDEUR : CORRECTION WRAPPING TEXTE */}
+        {/* MODAL DÉTAILS VENDEUR */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-            <h2>{selectedSeller.name}</h2>
-            <div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div>
-            </div>
+            <div className="modal-header"><h2>{selectedSeller.name}</h2><div className="close-btn" onClick={() => setSelectedSeller(null)}><X /></div></div>
             <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
-                <div key={id} className="ticket-group-card" style={{background: '#fff', borderRadius: '15px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)'}}>
-                <div className="ticket-header" style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '10px'}}>
-                <span style={{fontWeight: 'bold', fontSize: '13px', color: '#666'}}><Receipt size={14} style={{verticalAlign: 'middle', marginRight: '5px'}}/> Ticket #{id}</span>
-                <span style={{fontSize: '11px', color: '#999'}}>{ticket.date}</span>
+                <div key={id} className="ticket-group-card">
+                <div className="ticket-header">
+                <span style={{fontWeight:'bold'}}><Receipt size={14}/> Ticket #{id}</span>
+                <span style={{fontSize:'11px'}}>{ticket.date}</span>
                 </div>
                 {Object.entries(FAMILIES).map(([famKey, famInfo]) => {
                     const itemsInFam = ticket.items.filter(i => i.fam === famKey);
                     if (itemsInFam.length === 0) return null;
                     return (
-                        <div key={famKey} style={{marginBottom: '10px'}}>
-                        <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px', opacity: 0.8}}>{famInfo.label}</div>
+                        <div key={famKey} style={{marginBottom:'10px'}}>
+                        <div style={{fontSize:'10px', fontWeight:'bold', color:famInfo.color, marginBottom:'4px'}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12px', padding: '4px 0', borderBottom: '1px dashed #f0f0f0'}}>
-                            <span style={{color: '#333', flex: 1, paddingRight: '10px', wordBreak: 'break-word'}}>{item.lib}</span>
-                            <span style={{fontWeight: 'bold', color: '#666', whiteSpace: 'nowrap'}}>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</span>
+                            <div key={idx} className="item-row-minimal">
+                            <span>{item.lib}</span>
+                            <strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong>
                             </div>
                         ))}
                         </div>
