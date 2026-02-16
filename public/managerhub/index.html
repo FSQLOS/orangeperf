@@ -8,7 +8,6 @@
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ManagerHub">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/f/ff/Orange_logo.svg">
     <meta name="theme-color" content="#FF7900">
 
@@ -31,7 +30,7 @@
         button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; flex: 1; }
         .badge { font-size: 10px; background: #333; padding: 3px 7px; border-radius: 5px; color: #bbb; margin-top: 4px; display: inline-block; }
         .timer-select { font-size: 11px; background: #333; color: #FF7900; border: 1px solid #FF7900; border-radius: 6px; padding: 4px; }
-        .done { display: none; } /* Cache les tâches terminées */
+        .done { display: none; }
     </style>
 </head>
 <body>
@@ -72,7 +71,8 @@
             async function addTask(title = null) {
                 const finalTitle = typeof title === 'string' ? title : text;
                 if (!finalTitle.trim()) return;
-                await supabaseClient.from('tasks').insert([{ text: finalTitle, is_done: false, due_date: date || null }]);
+                const { error } = await supabaseClient.from('tasks').insert([{ text: finalTitle, is_done: false, due_date: date || null }]);
+                if (error) alert("Erreur ajout : " + error.message);
                 setText(''); setDate('');
             }
 
@@ -85,13 +85,18 @@
 
             async function toggleTask(task) {
                 const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-                const { error } = await supabaseClient.from('tasks').update({
-                    is_done: true,
-                    last_updated_by: "bad Monkey",
-                    completed_at: now
-                }).eq('id', task.id);
+                // Correction : On inverse la valeur actuelle
+                const { error } = await supabaseClient.from('tasks')
+                    .update({
+                        is_done: !task.is_done,
+                        last_updated_by: "bad Monkey",
+                        completed_at: now
+                    })
+                    .eq('id', task.id);
 
-                if (!error) {
+                if (error) {
+                    alert("Erreur lors de la validation : " + error.message);
+                } else if (!task.is_done) {
                     sendNotification(task.text);
                 }
             }
@@ -122,11 +127,11 @@
                             <div style={{textAlign:'center', color:'#666', padding:20, fontSize:14}}>Aucune tâche en cours.</div>
                         ) : (
                             tasks.map(t => (
-                                <div key={t.id} className={`task-item ${t.is_done ? 'done' : ''}`}>
+                                <div key={t.id} className="task-item">
                                     <div className="checkbox" onClick={() => toggleTask(t)}>
                                         {t.is_done && <div className="check-inner"></div>}
                                     </div>
-                                    <div style={{flex:1}}>
+                                    <div style={{flex:1}} onClick={() => toggleTask(t)}>
                                         <div style={{fontSize:15, fontWeight:'500'}}>{t.text}</div>
                                         <div style={{display:'flex', gap:6}}>
                                             {t.due_date && <span className="badge">📅 {t.due_date}</span>}
