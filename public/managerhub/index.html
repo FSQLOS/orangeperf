@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MANAGER HUB</title>
+    <title>MANAGER HUB PRO</title>
 
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,7 +17,7 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <style>
-        body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 140px; }
+        body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 160px; }
         .orange { color: #FF7900; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .card { background: #1E1E1E; border-radius: 20px; padding: 15px; border: 1px solid #333; }
@@ -26,31 +26,23 @@
         .check-inner { width: 14px; height: 14px; background: #FF7900; border-radius: 2px; }
         .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #1E1E1E; padding: 15px; border-top: 1px solid #333; z-index: 100; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
         .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 12px; border-radius: 12px; outline: none; font-size: 16px; }
-        button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; flex: 1; }
-        .badge { font-size: 10px; background: #333; padding: 3px 7px; border-radius: 5px; color: #bbb; margin-top: 4px; display: inline-block; }
-        .timer-select { font-size: 11px; background: #333; color: #FF7900; border: 1px solid #FF7900; border-radius: 6px; padding: 4px; }
-        .done { display: none; }
+        input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 12px; border-radius: 12px; outline: none; font-size: 16px; width: 100%; }
+        button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; }
+        .badge { font-size: 10px; background: #333; padding: 3px 7px; border-radius: 5px; color: #FF7900; margin-top: 4px; display: inline-block; border: 1px solid #444; }
+        .timer-select { font-size: 11px; background: #121212; color: #FF7900; border: 1px solid #FF7900; border-radius: 6px; padding: 4px; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-
     <script type="text/babel">
         const { useState, useEffect } = React;
+        const supabaseClient = window.supabase.createClient('https://phqdtypbrwxngqdjgoud.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY');
 
-        const SUPABASE_URL = 'https://phqdtypbrwxngqdjgoud.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        const PUSHOVER_USER_KEY = "uo2etydqc1j6726fv1769dia3pnfz7";
+        // CLÉS PUSHOVER (GROUPE)
+        const PUSHOVER_GROUP_KEY = "gd3eebz7m51nws4efob68zcbge5xzz";
         const PUSHOVER_API_TOKEN = "amxg1ri2x75nxx91airuhmaxs1gdo3";
 
-        const TASKS_LUNDI = [
-            "Envoyer les assurances", "Répondre aux avis client", "Contrôles hebdomadaire",
-            "Checker les chiffres", "Mettre à jour Orange Perf", "Checker les plateaux",
-            "Remise en banque", "Focus", "Formations Campus"
-        ];
+        const TASKS_LUNDI = ["Envoyer les assurances", "Répondre aux avis client", "Contrôles hebdomadaire", "Checker les chiffres", "Mettre à jour Orange Perf", "Checker les plateaux", "Remise en banque", "Focus", "Formations Campus"];
 
         function App() {
             const [tasks, setTasks] = useState([]);
@@ -59,8 +51,8 @@
 
             useEffect(() => {
                 fetchTasks();
-                const channel = supabaseClient.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>fetchTasks()).subscribe();
-                return () => supabaseClient.removeChannel(channel);
+                const ch = supabaseClient.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>fetchTasks()).subscribe();
+                return () => supabaseClient.removeChannel(ch);
             }, []);
 
             async function fetchTasks() {
@@ -69,35 +61,33 @@
             }
 
             async function addTask(title = null) {
-                const finalTitle = typeof title === 'string' ? title : text;
+                const finalTitle = (typeof title === 'string') ? title : text;
                 if (!finalTitle.trim()) return;
-                const { error } = await supabaseClient.from('tasks').insert([{ text: finalTitle, is_done: false, due_date: date || null }]);
-                if (error) alert("Erreur ajout : " + error.message);
-                setText(''); setDate('');
-            }
 
-            async function injectLundi() {
-                if(confirm("Générer les tâches du Lundi Admin ?")) {
-                    const batch = TASKS_LUNDI.map(t => ({ text: t, is_done: false }));
-                    await supabaseClient.from('tasks').insert(batch);
-                }
+                const payload = { text: finalTitle, is_done: false };
+                if (date) payload.due_date = date;
+
+                const { error } = await supabaseClient.from('tasks').insert([payload]);
+                if (error) alert("Erreur : " + error.message);
+                setText(''); setDate('');
             }
 
             async function toggleTask(task) {
                 const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-                // Correction : On inverse la valeur actuelle
-                const { error } = await supabaseClient.from('tasks')
-                    .update({
-                        is_done: !task.is_done,
-                        last_updated_by: "bad Monkey",
-                        completed_at: now
-                    })
-                    .eq('id', task.id);
+                const { error } = await supabaseClient.from('tasks').update({
+                    is_done: !task.is_done,
+                    last_updated_by: "bad Monkey",
+                    completed_at: now
+                }).eq('id', task.id);
 
-                if (error) {
-                    alert("Erreur lors de la validation : " + error.message);
-                } else if (!task.is_done) {
-                    sendNotification(task.text);
+                if (!error && !task.is_done) {
+                    const formData = new FormData();
+                    formData.append("token", PUSHOVER_API_TOKEN);
+                    formData.append("user", PUSHOVER_GROUP_KEY);
+                    formData.append("title", "Checklist Boutique");
+                    formData.append("message", `bad Monkey a fini : ${task.text}`);
+                    formData.append("sound", "cashregister");
+                    fetch("https://api.pushover.net/1/messages.json", { method: "POST", body: formData });
                 }
             }
 
@@ -105,69 +95,53 @@
                 await supabaseClient.from('tasks').update({ timer_plan: val }).eq('id', id);
             }
 
-            function sendNotification(label) {
-                const formData = new FormData();
-                formData.append("token", PUSHOVER_API_TOKEN);
-                formData.append("user", PUSHOVER_USER_KEY);
-                formData.append("title", "Tâche validée ✅");
-                formData.append("message", `bad Monkey a fini : ${label}`);
-                formData.append("sound", "cashregister");
-                fetch("https://api.pushover.net/1/messages.json", { method: "POST", body: formData });
-            }
-
             return (
                 <div className="container">
                     <div className="header">
-                        <h2 style={{margin:0, fontSize:20}}>LUNDI <span className="orange">ADMIN</span></h2>
-                        <button onClick={injectLundi} style={{background:'#FF7900', border:'none', color:'white', padding:'8px 12px', borderRadius:10, fontSize:11, fontWeight:'bold'}}>+ PACK LUNDI</button>
+                        <h2 style={{margin:0, fontSize:18}}>LUNDI <span className="orange">ADMIN</span></h2>
+                        <button onClick={async () => { if(confirm("Lancer Pack Lundi ?")) { for(const t of TASKS_LUNDI) await addTask(t); } }} style={{background:'#FF7900', border:'none', color:'white', padding:'6px 12px', borderRadius:8, fontSize:10, fontWeight:'bold'}}>+ PACK</button>
                     </div>
 
                     <div className="card">
-                        {tasks.filter(t => !t.is_done).length === 0 ? (
-                            <div style={{textAlign:'center', color:'#666', padding:20, fontSize:14}}>Aucune tâche en cours.</div>
-                        ) : (
-                            tasks.map(t => (
-                                <div key={t.id} className="task-item">
-                                    <div className="checkbox" onClick={() => toggleTask(t)}>
-                                        {t.is_done && <div className="check-inner"></div>}
+                        {tasks.filter(t => !t.is_done).length === 0 ? <div style={{textAlign:'center', color:'#666', padding:20}}>Toutes les missions sont accomplies ! ✨</div> :
+                        tasks.filter(t => !t.is_done).map(t => (
+                            <div key={t.id} className="task-item">
+                                <div className="checkbox" onClick={() => toggleTask(t)}>{t.is_done && <div className="check-inner" />}</div>
+                                <div style={{flex:1}} onClick={() => toggleTask(t)}>
+                                    <div style={{fontSize:15, fontWeight:'500'}}>{t.text}</div>
+                                    <div style={{display:'flex', gap:6}}>
+                                        {t.due_date && <span className="badge">📅 {t.due_date}</span>}
+                                        {t.timer_plan && <span className="badge">⏱️ {t.timer_plan}</span>}
                                     </div>
-                                    <div style={{flex:1}} onClick={() => toggleTask(t)}>
-                                        <div style={{fontSize:15, fontWeight:'500'}}>{t.text}</div>
-                                        <div style={{display:'flex', gap:6}}>
-                                            {t.due_date && <span className="badge">📅 {t.due_date}</span>}
-                                            {t.timer_plan && <span className="badge">⏱️ {t.timer_plan}</span>}
-                                        </div>
-                                    </div>
-                                    <select className="timer-select" value={t.timer_plan || ""} onChange={(e) => setTimer(t.id, e.target.value)}>
-                                        <option value="">Timer</option>
-                                        <option value="15 min">15m</option>
-                                        <option value="30 min">30m</option>
-                                        <option value="45 min">45m</option>
-                                        <option value="1h00">1h</option>
-                                    </select>
                                 </div>
-                            ))
-                        )}
+                                <select className="timer-select" value={t.timer_plan || ""} onClick={(e)=>e.stopPropagation()} onChange={(e) => setTimer(t.id, e.target.value)}>
+                                    <option value="">Timer</option>
+                                    <option value="15 min">15m</option>
+                                    <option value="30 min">30m</option>
+                                    <option value="45 min">45m</option>
+                                    <option value="1h00">1h</option>
+                                </select>
+                            </div>
+                        ))}
                     </div>
 
-                    <form className="footer-form" onSubmit={(e) => { e.preventDefault(); addTask(); }}>
+                    <div className="footer-form">
                         <div className="input-row">
-                            <input style={{flex:2}} type="text" placeholder="Nouvelle mission..." value={text} onChange={e => setText(e.target.value)} />
-                            <input style={{flex:1}} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                            <input type="text" placeholder="Nouvelle mission..." value={text} onChange={e => setText(e.target.value)} />
+                            <input style={{width:'140px'}} type="date" value={date} onChange={e => setDate(e.target.value)} />
                         </div>
                         <div className="input-row">
-                            <select style={{flex:1}} onChange={(e) => { if(e.target.value) addTask("Entretien avec " + e.target.value); }}>
+                            <select onChange={(e) => { if(e.target.value) addTask("Entretien avec " + e.target.value); e.target.value = ""; }}>
                                 <option value="">👤 Entretien équipe...</option>
                                 <option value="Jean-Max">Jean-Max</option>
                                 <option value="Nico">Nico</option>
                             </select>
-                            <button type="submit" className="add-btn">AJOUTER</button>
+                            <button className="add-btn" onClick={() => addTask()}>AJOUTER</button>
                         </div>
-                    </form>
+                    </div>
                 </div>
             );
         }
-
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
