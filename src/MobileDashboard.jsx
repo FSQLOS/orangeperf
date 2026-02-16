@@ -29,16 +29,21 @@ export default function MobileDashboard({ config }) {
     const [caModal, setCaModal] = useState(false);
     const [teamMap, setTeamMap] = useState({});
 
+    // FAMILIES MISES À JOUR
     const FAMILIES = {
         BOX: { label: "🌐 LIVEBOX", color: "#527EDB" },
         APPLE: { label: "🍎 APPLE", color: "#1a1a1a" },
         SAMSUNG: { label: "🪐 SAMSUNG", color: "#034EA2" },
+        GOOGLE: { label: "🔍 GOOGLE", color: "#4285F4" },
+        XIAOMI: { label: "📱 XIAOMI", color: "#FF6700" },
+        HONOR: { label: "💎 HONOR", color: "#00a5e3" },
+        CROSSCALL: { label: "🌲 CROSSCALL", color: "#2d3e50" },
         DORO: { label: "👴 DORO", color: "#E6007E" },
-        XIAOMI: { label: "📱 XIAOMI / AUTRES", color: "#FF6700" },
         PROT: { label: "🛡️ PROTECTION", color: "#059669" },
         ACC: { label: "🎧 ACCESSOIRES", color: "#4b5563" },
         TRANSFERTS: { label: "📲 TRANSFERTS", color: "#4F46E5" },
-        SERV: { label: "✨ SERVICES / ASSUR", color: "#FF7900" },
+        SERV: { label: "✨ SERVICES MOB", color: "#FF7900" },
+        HOME_SERV: { label: "🏠 SERVICES HOME", color: "#32C832" },
         AUTRE: { label: "📦 DIVERS", color: "#9ca3af" }
     };
 
@@ -51,7 +56,7 @@ export default function MobileDashboard({ config }) {
     };
 
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
-    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "REDMI NOTE", "CROSSCALL STELLAR"];
+    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "REDMI NOTE", "STELLAR", "PIXEL"];
     const KEY_NOT_TERM = ["COQUE", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "KIT", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE"];
     const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
@@ -66,17 +71,25 @@ export default function MobileDashboard({ config }) {
     const getFamily = (lib, code) => {
         const l = lib.toUpperCase();
         if (CODES.Broadband.includes(code)) return "BOX";
+
+        // SERVICES & TRANSFERTS
+        if (l.includes("INSTALLATION EXPERTE FIBRE")) return "HOME_SERV";
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
-        if (l.includes("FORCE GLASS") || l.includes("FORCE CASE") || l.includes("SPRAY")) return "ACC";
+        if (l.includes("ASSURANCE") || l.includes("CYBER") || l.includes("SERVICE") || CODES.Assurance.includes(code)) return "SERV";
+
+        // SMARTPHONES PAR MARQUE
         if (l.includes("IPHONE") || l.includes("APPLE") || l.includes("AIRPOD")) return "APPLE";
         if (l.includes("SAMSUNG") || l.includes("GALAXY")) return "SAMSUNG";
-        if (l.includes("DORO")) return "DORO";
+        if (l.includes("PIXEL") || l.includes("GOOGLE")) return "GOOGLE";
+        if (l.includes("CROSSCALL") || l.includes("STELLAR")) return "CROSSCALL";
         if (l.includes("XIAOMI") || l.includes("REDMI") || l.includes("POCO")) return "XIAOMI";
         if (l.includes("HONOR")) return "HONOR";
-        if (l.includes("CROSSCALL") || l.includes("STELLAR")) return "CROSSCALL"
-        if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT")) return "PROT";
+        if (l.includes("DORO")) return "DORO";
+
+        // ACCESSOIRES
+        if (l.includes("FORCE GLASS") || l.includes("FORCE CASE") || l.includes("SPRAY") || l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT")) return "PROT";
         if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT")) return "ACC";
-        if (l.includes("ASSURANCE") || l.includes("CYBER") || l.includes("SERVICE") || CODES.Assurance.includes(code)) return "SERV";
+
         return "AUTRE";
     };
 
@@ -180,19 +193,6 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
-    const openGlobalComparison = (category) => {
-        const nbVendeurs = Object.keys(teamMap).length || 1;
-        const objectives = config?.objectifs || {};
-        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((objectives[category] || 0) / nbVendeurs) : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
-        const data = Object.keys(currentStats).map(code => {
-            const s = currentStats[code];
-            let val = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
-            let color = (val >= indivTarget) ? '#10b981' : (val >= indivTarget / 2 ? '#f59e0b' : '#ef4444');
-            return { name: teamMap[code] || code, val, color };
-        }).sort((a, b) => b.val - a.val);
-        setCompareMode({ category, data, isPercent: category === 'TxAssur', target: indivTarget });
-    };
-
     const mInfo = getMonthInfo();
     const objTotalCA = config?.objectifs?.CA || 0;
     const prorataTarget = Math.round(objTotalCA * mInfo.pct);
@@ -200,7 +200,7 @@ export default function MobileDashboard({ config }) {
     const isAhead = diffCA >= 0;
     const landingCA = mInfo.now > 0 ? Math.round(globalData.ca / mInfo.now * mInfo.total) : 0;
 
-    if (loading) return <div className="loader-screen">Chargement...</div>;
+    if (loading) return <div className="loader-screen">Analyse des données boutique...</div>;
 
     return (
         <div className="modern-dashboard">
@@ -224,7 +224,7 @@ export default function MobileDashboard({ config }) {
         <div className="scroll-content">
         <div className="section-label">🎯 ÉQUIPE</div>
         <div className="global-scroll">
-        <div className="stat-card featured" onClick={() => openGlobalComparison('TxAssur')}>
+        <div className="stat-card featured">
         <div className="circular-wrap">
         <CircularProgressbar value={globalData.assur} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })} />
         </div>
@@ -234,7 +234,7 @@ export default function MobileDashboard({ config }) {
             const style = getCategoryStyle(key);
             const count = viewMode === 'month' ? (globalData.counts[key] || 0) : Object.values(currentStats).reduce((acc, s) => acc + (s[key] || 0), 0);
             return (
-                <div key={key} className="stat-card" onClick={() => openGlobalComparison(key)}>
+                <div key={key} className="stat-card">
                 <div className="icon-badge" style={{ background: style.grad }}>{style.icon}</div>
                 <div className="stat-value">{count}</div>
                 <div className="card-label">{style.label}</div>
@@ -274,51 +274,27 @@ export default function MobileDashboard({ config }) {
         })}
         </div>
 
-        {/* --- SECTION LÉGENDE --- */}
-        <div className="section-label">📖 LÉGENDE DES INDICATEURS</div>
+        <div className="section-label">📖 LÉGENDE</div>
         <div className="legend-container">
         <div className="legend-group">
-        <h3>Volumes (Totaux)</h3>
+        <h3>Volumes</h3>
         <div className="legend-grid">
-        <div className="legend-item"><Smartphone size={14}/> <span>Terminaux (Neufs + Reco)</span></div>
-        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles (Ventes/Exclu)</span></div>
-        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox (Fibre/ADSL)</span></div>
-        <div className="legend-item"><Shield size={14} color="#666"/> <span>Nombre d'Assurances</span></div>
-        <div className="legend-item"><Zap size={14} color="#FFCC00"/> <span>MIG (Migrations vers Fibre)</span></div>
-        <div className="legend-item"><TrendingUp size={14} color="#856404"/> <span>MEV (Montées en Version)</span></div>
-        <div className="legend-item"><Home size={14} color="#32C832"/> <span>Maison Protégée</span></div>
+        <div className="legend-item"><Smartphone size={14}/> <span>Terminaux (Neufs/Reco)</span></div>
+        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Mobiles</span></div>
+        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox</span></div>
+        <div className="legend-item"><Shield size={14} color="#666"/> <span>Assurances</span></div>
         </div>
         </div>
         <div className="legend-group">
-        <h3>Taux de performance (%)</h3>
+        <h3>Taux</h3>
         <div className="legend-grid">
-        <div className="legend-item"><div className="pill-mini acc">ACC</div> <span>Nb Accessoires / Nb Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini reco"><Leaf size={10}/></div> <span>Taux de Reconditionné / Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini cyber"><Shield size={10}/></div> <span>Pénétration Cyber / (Box+Mig+Mev+Mob)</span></div>
-        <div className="legend-item">🛡️ <span>Taux d'Assurance / Terminaux</span></div>
+        <div className="legend-item"><div className="pill-mini acc">ACC</div> <span>Accessoires par Mobile</span></div>
+        <div className="legend-item"><div className="pill-mini reco"><Leaf size={10}/></div> <span>Taux Reconditionné</span></div>
+        <div className="legend-item"><div className="pill-mini cyber"><Shield size={10}/></div> <span>Pénétration Cyber</span></div>
         </div>
         </div>
         </div>
         </div>
-
-        {compareMode && (
-            <div className="glass-overlay" onClick={() => setCompareMode(null)}>
-            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>{compareMode.category}</h2><X onClick={() => setCompareMode(null)} /></div>
-            <div style={{height: '380px', padding: '10px'}}>
-            <Bar
-            data={{ labels: compareMode.data.map(d => d.name), datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 8, barThickness: 28 }] }}
-            options={{
-                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                layout: { padding: { right: 45, left: 10 } },
-                plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', offset: 8, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') } },
-                         scales: { x: { display: false, beginAtZero: true, suggestedMax: Math.max(...compareMode.data.map(d => d.val)) * 1.2 }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } }
-            }}
-            />
-            </div>
-            </div>
-            </div>
-        )}
 
         {caModal && (
             <div className="glass-overlay" onClick={() => setCaModal(false)}>
@@ -342,7 +318,6 @@ export default function MobileDashboard({ config }) {
             </div>
             </div>
             <div className="ro-footer-card">
-            <div className="ro-footer-item"><span>Objectif Total Mois</span><strong>{objTotalCA} €</strong></div>
             <div className="ro-footer-item"><span>Atterrissage estimé</span><strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong></div>
             </div>
             </div>
@@ -392,39 +367,20 @@ export default function MobileDashboard({ config }) {
             .ca-badge.is-ahead .ca-trend-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
             .ca-badge.is-behind .ca-trend-dot { background: #ff4d4f; box-shadow: 0 0 8px #ff4d4f; }
             .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-            .seller-main-info { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
             .rank-badge { width: 22px; height: 22px; background: #1a1a1a; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
-            .name { font-weight: 800; font-size: 14px; }
-            .basic-kpis { font-size: 11px; color: #666; }
             .seller-metrics { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
             .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; display: flex; align-items: center; gap: 3px; }
             .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; }
-            .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-            .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; }
-            .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
-            .ticket-line span { color: #333; flex: 1; padding-right: 10px; }
-
-            /* STYLE LÉGENDE */
-            .legend-container { background: white; margin: 0 15px 30px 15px; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
-            .legend-group { margin-bottom: 15px; }
-            .legend-group h3 { font-size: 12px; color: #FF7900; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #fff5eb; padding-bottom: 5px; }
-            .legend-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
-            .legend-item { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #444; }
-            .legend-item span { color: #666; }
-            .pill-mini { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; display: flex; align-items: center; }
+            .legend-container { background: white; margin: 0 15px 30px 15px; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+            .legend-group h3 { font-size: 11px; color: #FF7900; text-transform: uppercase; margin-bottom: 8px; }
+            .legend-grid { display: grid; gap: 5px; margin-bottom: 10px; }
+            .legend-item { display: flex; align-items: center; gap: 8px; font-size: 10px; }
+            .pill-mini { padding: 2px 5px; border-radius: 4px; font-size: 8px; font-weight: bold; }
             .pill-mini.acc { background: #f0f4ff; color: #527EDB; }
             .pill-mini.reco { background: #e6f7ed; color: #10b981; }
             .pill-mini.cyber { background: #f5f0ff; color: #6f42c1; }
-
-            .ro-main-stat { text-align: center; margin-bottom: 20px; }
-            .ro-label { font-size: 14px; color: #666; }
-            .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
-            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-            .ro-card { border: 1px solid #eee; padding: 12px; border-radius: 15px; text-align: center; }
-            .ro-sublabel { font-size: 11px; color: #999; margin: 5px 0; }
-            .ro-subval { font-size: 16px; font-weight: bold; }
-            .ro-footer-card { background: #f9fafb; border-radius: 15px; padding: 15px; }
-            .ro-footer-item { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
+            .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+            .ticket-line { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; }
             `}</style>
             </div>
     );
