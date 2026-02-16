@@ -9,27 +9,25 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 120px; }
+        body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 140px; }
         .orange { color: #FF7900; }
         .card { background: #1E1E1E; border-radius: 20px; padding: 15px; margin-bottom: 15px; border: 1px solid #333; }
         .task-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #2A2A2A; }
-        .checkbox { width: 24px; height: 24px; border: 2px solid #FF7900; border-radius: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .checkbox { width: 24px; height: 24px; border: 2px solid #FF7900; border-radius: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .check-inner { width: 12px; height: 12px; background: #FF7900; border-radius: 2px; }
         .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #1E1E1E; padding: 15px; border-top: 1px solid #333; z-index: 100; }
         .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
         input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 10px; border-radius: 10px; outline: none; font-size: 14px; }
-        button.add-btn { background: #FF7900; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; }
-        .timer-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; background: #333; border: 1px solid #555; color: #ccc; }
-        .timer-active { background: #FF7900; color: white; border-color: #FF7900; animation: pulse 1.5s infinite; }
-        .badge { font-size: 10px; background: #333; padding: 2px 6px; border-radius: 4px; color: #999; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-        .done { opacity: 0.3; text-decoration: line-through; }
+        button.add-btn { background: #FF7900; color: white; border: none; padding: 10px; border-radius: 10px; font-weight: bold; flex: 1; }
+        .timer-select { font-size: 10px; background: #333; color: #FF7900; border: 1px solid #FF7900; border-radius: 5px; padding: 2px; }
+        .badge { font-size: 10px; background: #333; padding: 2px 6px; border-radius: 4px; color: #999; margin-top: 4px; display: inline-block; }
+        .done { display: none; } /* Les tâches cochées disparaissent maintenant */
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
         const supabaseClient = window.supabase.createClient('https://phqdtypbrwxngqdjgoud.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY');
 
         const DEFAULT_TASKS = [
@@ -42,7 +40,6 @@
             const [tasks, setTasks] = useState([]);
             const [text, setText] = useState('');
             const [targetDate, setTargetDate] = useState('');
-            const [activeTimers, setActiveTimers] = useState({});
 
             useEffect(() => {
                 fetchTasks();
@@ -55,21 +52,19 @@
                 if (data) setTasks(data);
             }
 
-            async function addTask(e, customText = null) {
-                if (e) e.preventDefault();
-                const taskTitle = customText || text;
+            async function addTask(customTitle = null) {
+                const taskTitle = customTitle || text;
                 if (!taskTitle.trim()) return;
-                await supabaseClient.from('tasks').insert([{
-                    text: taskTitle,
-                    is_done: false,
-                    due_date: targetDate || null
-                }]);
+                await supabaseClient.from('tasks').insert([{ text: taskTitle, is_done: false, due_date: targetDate || null }]);
                 setText(''); setTargetDate('');
             }
 
             async function injectLundi() {
-                if(confirm("Injecter les tâches du Lundi Admin ?")) {
-                    for(const t of DEFAULT_TASKS) { await addTask(null, t); }
+                if(confirm("Lancer le pack Lundi Admin ?")) {
+                    for(const t of DEFAULT_TASKS) {
+                        await supabaseClient.from('tasks').insert([{ text: t, is_done: false }]);
+                    }
+                    fetchTasks();
                 }
             }
 
@@ -82,58 +77,56 @@
                 }).eq('id', task.id);
             }
 
-            const toggleTimer = (taskId) => {
-                const now = Date.now();
-                if (activeTimers[taskId]) {
-                    const duration = Math.round((now - activeTimers[taskId]) / 60000);
-                    alert(`Tâche terminée en environ ${duration} minutes.`);
-                    const newTimers = {...activeTimers}; delete newTimers[taskId];
-                    setActiveTimers(newTimers);
-                } else {
-                    setActiveTimers({...activeTimers, [taskId]: now});
-                }
-            };
+            async function updateTimer(taskId, val) {
+                await supabaseClient.from('tasks').update({ timer_plan: val }).eq('id', taskId);
+            }
 
             return (
                 <div className="container">
-                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:20}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
                         <h2 style={{margin:0, fontSize:18}}>LUNDI <span className="orange">ADMIN</span></h2>
-                        <button onClick={injectLundi} style={{background:'none', border:'1px solid #FF7900', color:'#FF7900', fontSize:10, borderRadius:8, padding:'4px 8px'}}>+ PACK LUNDI</button>
+                        <button onClick={injectLundi} style={{background:'#FF7900', border:'none', color:'white', fontSize:10, borderRadius:8, padding:'6px 12px', fontWeight:'bold'}}>+ PACK LUNDI</button>
                     </div>
 
                     <div className="card">
+                        {tasks.filter(t => !t.is_done).length === 0 && <div style={{textAlign:'center', color:'#666', padding:20}}>Toutes les tâches sont terminées ! ✨</div>}
                         {tasks.map(t => (
                             <div key={t.id} className={`task-item ${t.is_done ? 'done' : ''}`}>
-                                <div className="checkbox" onClick={() => toggleTask(t)}>{t.is_done && <div className="check-inner"></div>}</div>
+                                <div className="checkbox" onClick={() => toggleTask(t)}>
+                                    {t.is_done && <div className="check-inner"></div>}
+                                </div>
                                 <div style={{flex:1}}>
                                     <div style={{fontSize:14, fontWeight:'500'}}>{t.text}</div>
-                                    <div style={{display:'flex', gap:5, marginTop:4}}>
+                                    <div style={{display:'flex', gap:5}}>
                                         {t.due_date && <span className="badge">📅 {t.due_date}</span>}
-                                        {t.is_done && <span className="badge">✅ {t.completed_at}</span>}
+                                        {t.timer_plan && <span className="badge">⏱️ {t.timer_plan}</span>}
                                     </div>
                                 </div>
-                                {!t.is_done && (
-                                    <button
-                                        className={`timer-btn ${activeTimers[t.id] ? 'timer-active' : ''}`}
-                                        onClick={() => toggleTimer(t.id)}
-                                    >
-                                        {activeTimers[t.id] ? '⏱️ EN COURS' : '⏱️ TIMER'}
-                                    </button>
-                                )}
+                                <select
+                                    className="timer-select"
+                                    value={t.timer_plan || ""}
+                                    onChange={(e) => updateTimer(t.id, e.target.value)}
+                                >
+                                    <option value="">Timer</option>
+                                    <option value="15 min">15m</option>
+                                    <option value="30 min">30m</option>
+                                    <option value="45 min">45m</option>
+                                    <option value="1h00">1h</option>
+                                </select>
                             </div>
                         ))}
                     </div>
 
-                    <form className="footer-form" onSubmit={addTask}>
+                    <form className="footer-form" onSubmit={(e) => { e.preventDefault(); addTask(); }}>
                         <div className="input-row">
-                            <input style={{flex:2}} type="text" placeholder="Mission ou Entretien avec..." value={text} onChange={e => setText(e.target.value)} />
+                            <input style={{flex:2}} type="text" placeholder="Mission..." value={text} onChange={e => setText(e.target.value)} />
                             <input style={{flex:1}} type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
                         </div>
                         <div className="input-row">
-                            <select style={{flex:1}} onChange={(e) => setText("Entretien avec " + e.target.value)}>
-                                <option>👤 Choisir équipier</option>
-                                <option value="Collaborateur A">Collaborateur A</option>
-                                <option value="Collaborateur B">Collaborateur B</option>
+                            <select style={{flex:1}} onChange={(e) => { if(e.target.value) addTask("Entretien avec " + e.target.value); }}>
+                                <option value="">👤 Entretien avec...</option>
+                                <option value="Jean-Max">Jean-Max</option>
+                                <option value="Nico">Nico</option>
                             </select>
                             <button type="submit" className="add-btn">AJOUTER</button>
                         </div>
