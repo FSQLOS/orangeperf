@@ -7,7 +7,7 @@ import {
     Smartphone, Wifi, Shield, Zap, Home, Activity,
     ChevronRight, X, TrendingUp, AlertTriangle, BarChart2,
     Calendar, Clock, Receipt, RefreshCw, Target, TrendingDown,
-    Medal, Star, Award, Leaf
+    Medal, Star, Award, Leaf, Info
 } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
@@ -207,8 +207,8 @@ export default function MobileDashboard({ config }) {
         <div className="subtitle">Orange Boutique</div>
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
-        {/* Rétabli : Badge cliquable */}
-        <div className={`ca-badge ${isAhead ? 'trending-up' : 'trending-down'}`} onClick={() => setCaModal(true)} style={{cursor:'pointer'}}>
+        <div className={`ca-badge ${isAhead ? 'is-ahead' : 'is-behind'}`} onClick={() => setCaModal(true)} style={{cursor:'pointer'}}>
+        <div className="ca-trend-dot"></div>
         <div className="ca-val">{Math.round(globalData.ca)}€</div>
         </div>
         <button className={`refresh-btn ${refreshing ? 'spinning' : ''}`} onClick={fetchData}><RefreshCw size={20} /></button>
@@ -271,6 +271,32 @@ export default function MobileDashboard({ config }) {
             )
         })}
         </div>
+
+        {/* --- SECTION LÉGENDE --- */}
+        <div className="section-label">📖 LÉGENDE DES INDICATEURS</div>
+        <div className="legend-container">
+        <div className="legend-group">
+        <h3>Volumes (Totaux)</h3>
+        <div className="legend-grid">
+        <div className="legend-item"><Smartphone size={14}/> <span>Terminaux (Neufs + Reco)</span></div>
+        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles (Ventes/Exclu)</span></div>
+        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox (Fibre/ADSL)</span></div>
+        <div className="legend-item"><Shield size={14} color="#666"/> <span>Nombre d'Assurances</span></div>
+        <div className="legend-item"><Zap size={14} color="#FFCC00"/> <span>MIG (Migrations vers Fibre)</span></div>
+        <div className="legend-item"><TrendingUp size={14} color="#856404"/> <span>MEV (Montées en Version)</span></div>
+        <div className="legend-item"><Home size={14} color="#32C832"/> <span>Maison Protégée</span></div>
+        </div>
+        </div>
+        <div className="legend-group">
+        <h3>Taux de performance (%)</h3>
+        <div className="legend-grid">
+        <div className="legend-item"><div className="pill-mini acc">ACC</div> <span>Nb Accessoires / Nb Terminaux</span></div>
+        <div className="legend-item"><div className="pill-mini reco"><Leaf size={10}/></div> <span>Taux de Reconditionné / Terminaux</span></div>
+        <div className="legend-item"><div className="pill-mini cyber"><Shield size={10}/></div> <span>Pénétration Cyber / (Box+Mig+Mev+Mob)</span></div>
+        <div className="legend-item">🛡️ <span>Taux d'Assurance / Terminaux</span></div>
+        </div>
+        </div>
+        </div>
         </div>
 
         {compareMode && (
@@ -292,14 +318,10 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        {/* Modal CA Boutique Rétablie */}
         {caModal && (
             <div className="glass-overlay" onClick={() => setCaModal(false)}>
             <div className="glass-modal pop-in" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
-            <div className="modal-header">
-            <h2>Performance CA HT Boutique</h2>
-            <div className="close-btn" onClick={() => setCaModal(false)}><X /></div>
-            </div>
+            <div className="modal-header"><h2>Performance Boutique</h2><X onClick={() => setCaModal(false)} /></div>
             <div className="ro-container">
             <div className="ro-main-stat">
             <div className="ro-label">Réalisé au {mInfo.now} du mois</div>
@@ -314,20 +336,12 @@ export default function MobileDashboard({ config }) {
             <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}>
             <div className="ro-icon">{isAhead ? <TrendingUp size={18} color="#10b981"/> : <TrendingDown size={18} color="#ef4444"/>}</div>
             <div className="ro-sublabel">Écart R/O</div>
-            <div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>
-            {isAhead ? '+' : ''}{diffCA} €
-            </div>
+            <div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div>
             </div>
             </div>
             <div className="ro-footer-card">
-            <div className="ro-footer-item">
-            <span>Objectif Total Mois</span>
-            <strong>{objTotalCA} €</strong>
-            </div>
-            <div className="ro-footer-item">
-            <span>Atterrissage estimé</span>
-            <strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong>
-            </div>
+            <div className="ro-footer-item"><span>Objectif Total Mois</span><strong>{objTotalCA} €</strong></div>
+            <div className="ro-footer-item"><span>Atterrissage estimé</span><strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong></div>
             </div>
             </div>
             </div>
@@ -341,10 +355,7 @@ export default function MobileDashboard({ config }) {
             <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
                 <div key={id} className="ticket-group-card">
-                <div className="ticket-header">
-                <span><Receipt size={14}/> #{id}</span>
-                <span>{ticket.date}</span>
-                </div>
+                <div className="ticket-header"><span><Receipt size={14}/> #{id}</span><span>{ticket.date}</span></div>
                 {Object.entries(FAMILIES).map(([famKey, famInfo]) => {
                     const itemsInFam = ticket.items.filter(i => i.fam === famKey);
                     if (itemsInFam.length === 0) return null;
@@ -352,10 +363,7 @@ export default function MobileDashboard({ config }) {
                         <div key={famKey} style={{marginBottom: '10px'}}>
                         <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px'}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} className="ticket-line">
-                            <span>{item.lib}</span>
-                            <strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong>
-                            </div>
+                            <div key={idx} className="ticket-line"><span>{item.lib}</span><strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong></div>
                         ))}
                         </div>
                     )
@@ -376,6 +384,11 @@ export default function MobileDashboard({ config }) {
             .icon-badge { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; color: white; }
             .stat-value { font-size: 18px; font-weight: 900; }
             .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 4px; }
+            .ca-badge { background: #1a1a1a; color: white; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
+            .ca-val { font-weight: 900; font-size: 15px; }
+            .ca-trend-dot { width: 8px; height: 8px; border-radius: 50%; }
+            .ca-badge.is-ahead .ca-trend-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
+            .ca-badge.is-behind .ca-trend-dot { background: #ff4d4f; box-shadow: 0 0 8px #ff4d4f; }
             .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
             .seller-main-info { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
             .rank-badge { width: 22px; height: 22px; background: #1a1a1a; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
@@ -388,6 +401,19 @@ export default function MobileDashboard({ config }) {
             .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; }
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
             .ticket-line span { color: #333; flex: 1; padding-right: 10px; }
+
+            /* STYLE LÉGENDE */
+            .legend-container { background: white; margin: 0 15px 30px 15px; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
+            .legend-group { margin-bottom: 15px; }
+            .legend-group h3 { font-size: 12px; color: #FF7900; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #fff5eb; padding-bottom: 5px; }
+            .legend-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+            .legend-item { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #444; }
+            .legend-item span { color: #666; }
+            .pill-mini { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; display: flex; align-items: center; }
+            .pill-mini.acc { background: #f0f4ff; color: #527EDB; }
+            .pill-mini.reco { background: #e6f7ed; color: #10b981; }
+            .pill-mini.cyber { background: #f5f0ff; color: #6f42c1; }
+
             .ro-main-stat { text-align: center; margin-bottom: 20px; }
             .ro-label { font-size: 14px; color: #666; }
             .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
@@ -397,8 +423,6 @@ export default function MobileDashboard({ config }) {
             .ro-subval { font-size: 16px; font-weight: bold; }
             .ro-footer-card { background: #f9fafb; border-radius: 15px; padding: 15px; }
             .ro-footer-item { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
-            .trending-up { background: #e6f7ed; border: 1px solid #b7ebc6; }
-            .trending-down { background: #fff1f0; border: 1px solid #ffa39e; }
             `}</style>
             </div>
     );
