@@ -192,7 +192,11 @@ export default function MobileDashboard({ config }) {
     };
 
     const mInfo = getMonthInfo();
-    const isAhead = (globalData.ca - (config?.objectifs?.CA * mInfo.pct)) >= 0;
+    const objTotalCA = config?.objectifs?.CA || 0;
+    const prorataTarget = Math.round(objTotalCA * mInfo.pct);
+    const diffCA = Math.round(globalData.ca - prorataTarget);
+    const isAhead = diffCA >= 0;
+    const landingCA = mInfo.now > 0 ? Math.round(globalData.ca / mInfo.now * mInfo.total) : 0;
 
     if (loading) return <div className="loader-screen">Chargement...</div>;
 
@@ -203,7 +207,8 @@ export default function MobileDashboard({ config }) {
         <div className="subtitle">Orange Boutique</div>
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
-        <div className={`ca-badge ${isAhead ? 'trending-up' : 'trending-down'}`} onClick={() => setCaModal(true)}>
+        {/* Rétabli : Badge cliquable */}
+        <div className={`ca-badge ${isAhead ? 'trending-up' : 'trending-down'}`} onClick={() => setCaModal(true)} style={{cursor:'pointer'}}>
         <div className="ca-val">{Math.round(globalData.ca)}€</div>
         </div>
         <button className={`refresh-btn ${refreshing ? 'spinning' : ''}`} onClick={fetchData}><RefreshCw size={20} /></button>
@@ -287,6 +292,48 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
+        {/* Modal CA Boutique Rétablie */}
+        {caModal && (
+            <div className="glass-overlay" onClick={() => setCaModal(false)}>
+            <div className="glass-modal pop-in" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
+            <div className="modal-header">
+            <h2>Performance CA HT Boutique</h2>
+            <div className="close-btn" onClick={() => setCaModal(false)}><X /></div>
+            </div>
+            <div className="ro-container">
+            <div className="ro-main-stat">
+            <div className="ro-label">Réalisé au {mInfo.now} du mois</div>
+            <div className="ro-value">{Math.round(globalData.ca)} €</div>
+            </div>
+            <div className="ro-grid">
+            <div className="ro-card">
+            <div className="ro-icon"><Target size={18} color="#666"/></div>
+            <div className="ro-sublabel">Objectif Prorata</div>
+            <div className="ro-subval">{prorataTarget} €</div>
+            </div>
+            <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}>
+            <div className="ro-icon">{isAhead ? <TrendingUp size={18} color="#10b981"/> : <TrendingDown size={18} color="#ef4444"/>}</div>
+            <div className="ro-sublabel">Écart R/O</div>
+            <div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>
+            {isAhead ? '+' : ''}{diffCA} €
+            </div>
+            </div>
+            </div>
+            <div className="ro-footer-card">
+            <div className="ro-footer-item">
+            <span>Objectif Total Mois</span>
+            <strong>{objTotalCA} €</strong>
+            </div>
+            <div className="ro-footer-item">
+            <span>Atterrissage estimé</span>
+            <strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong>
+            </div>
+            </div>
+            </div>
+            </div>
+            </div>
+        )}
+
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
@@ -338,9 +385,20 @@ export default function MobileDashboard({ config }) {
             .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; display: flex; align-items: center; gap: 3px; }
             .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; }
             .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-            .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; marginBottom: 10px; font-size: 11px; color: #999; }
+            .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; }
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
             .ticket-line span { color: #333; flex: 1; padding-right: 10px; }
+            .ro-main-stat { text-align: center; margin-bottom: 20px; }
+            .ro-label { font-size: 14px; color: #666; }
+            .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
+            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+            .ro-card { border: 1px solid #eee; padding: 12px; border-radius: 15px; text-align: center; }
+            .ro-sublabel { font-size: 11px; color: #999; margin: 5px 0; }
+            .ro-subval { font-size: 16px; font-weight: bold; }
+            .ro-footer-card { background: #f9fafb; border-radius: 15px; padding: 15px; }
+            .ro-footer-item { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
+            .trending-up { background: #e6f7ed; border: 1px solid #b7ebc6; }
+            .trending-down { background: #fff1f0; border: 1px solid #ffa39e; }
             `}</style>
             </div>
     );
