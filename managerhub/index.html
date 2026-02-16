@@ -13,111 +13,113 @@
         .container { max-width: 500px; margin: auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .orange-box { width: 12px; height: 12px; background: #FF7900; margin-right: 10px; }
-        .card { background: #262626; border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); min-height: 100px; }
-        .task-item { display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #333; }
+        .card { background: #262626; border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .task-item { display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #333; position: relative; }
         .checkbox { width: 26px; height: 26px; border: 2px solid #FF7900; border-radius: 8px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .check-inner { width: 14px; height: 14px; background: #FF7900; border-radius: 2px; }
-
-        /* Barre d'ajout fixée en bas pour le mobile */
-        .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #262626; padding: 15px 20px; border-top: 1px solid #333; display: flex; gap: 10px; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); z-index: 100; }
+        .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #262626; padding: 15px 20px; border-top: 1px solid #333; display: flex; gap: 10px; z-index: 100; }
         .footer-form input { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #444; background: #333; color: white; outline: none; font-size: 16px; }
         .footer-form button { background: #FF7900; color: white; border: none; width: 50px; height: 50px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 24px; }
-
-        .done { opacity: 0.4; text-decoration: line-through; }
-        .empty { text-align: center; color: #666; padding: 20px; font-size: 14px; }
+        .done { opacity: 0.4; }
+        .done-text { text-decoration: line-through; color: white; font-size: 15px; }
+        .meta-info { font-size: 10px; color: #999; margin-top: 2px; }
+        .reset-btn { background: none; border: 1px solid #444; color: #666; padding: 5px 10px; border-radius: 8px; font-size: 10px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Configuration Supabase
         const SUPABASE_URL = 'https://phqdtypbrwxngqdjgoud.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // --- CONFIG PUSHOVER ---
+        const PUSHOVER_USER_KEY = "uo2etydqc1j6726fv1769dia3pnfz7";
+        const PUSHOVER_API_TOKEN = "amxg1ri2x75nxx91airuhmaxs1gdo3";
+
         function App() {
             const [tasks, setTasks] = useState([]);
             const [text, setText] = useState('');
-            const [loading, setLoading] = useState(true);
 
             useEffect(() => {
                 fetchTasks();
-                // Écoute en temps réel
-                const channel = supabaseClient.channel('db-changes')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-                        fetchTasks();
-                    })
-                    .subscribe();
-
+                const channel = supabaseClient.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>fetchTasks()).subscribe();
                 return () => supabaseClient.removeChannel(channel);
             }, []);
 
             async function fetchTasks() {
-                const { data, error } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
+                const { data } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
                 if (data) setTasks(data);
-                setLoading(false);
             }
 
             async function toggleTask(task) {
-                await supabaseClient.from('tasks')
-                    .update({ is_done: !task.is_done, last_updated_by: "bad Monkey" })
-                    .eq('id', task.id);
+                const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                const userName = "bad Monkey";
+                const newStatus = !task.is_done;
+
+                await supabaseClient.from('tasks').update({
+                    is_done: newStatus,
+                    last_updated_by: userName,
+                    completed_at: now
+                }).eq('id', task.id);
+
+                if (newStatus) {
+                    sendPushoverNotification(task.text, userName);
+                }
+            }
+
+            async function sendPushoverNotification(taskLabel, user) {
+                const formData = new FormData();
+                formData.append("token", PUSHOVER_API_TOKEN);
+                formData.append("user", PUSHOVER_USER_KEY);
+                formData.append("title", "Checklist Boutique ✅");
+                formData.append("message", `${user} a validé : ${taskLabel}`);
+                formData.append("sound", "cashregister");
+
+                fetch("https://api.pushover.net/1/messages.json", { method: "POST", body: formData });
             }
 
             async function addTask(e) {
                 e.preventDefault();
                 if (!text.trim()) return;
-                const { error } = await supabaseClient.from('tasks').insert([{ text: text, is_done: false }]);
-                if (!error) setText('');
+                await supabaseClient.from('tasks').insert([{ text: text.trim(), is_done: false }]);
+                setText('');
+            }
+
+            async function resetAll() {
+                if(confirm("Vider toute la liste pour le nouveau lundi ?")) {
+                    await supabaseClient.from('tasks').delete().neq('id', 0);
+                }
             }
 
             return (
                 <div className="container">
                     <div className="header">
-                        <div style={{display:'flex', alignItems:'center'}}>
-                            <div className="orange-box"></div>
-                            <h1 style={{fontSize:'18px', margin:0}}>MANAGER HUB</h1>
-                        </div>
-                        <div style={{color:'#10b981', fontSize:'10px', fontWeight:'bold'}}>● LIVE SYNC</div>
+                        <div style={{display:'flex', alignItems:'center'}}><div className="orange-box"></div><h1 style={{fontSize:'18px', margin:0}}>MANAGER HUB</h1></div>
+                        <button className="reset-btn" onClick={resetAll}>RESET LUNDI</button>
                     </div>
-
                     <div className="card">
-                        {loading ? (
-                            <div className="empty">Chargement...</div>
-                        ) : tasks.length === 0 ? (
-                            <div className="empty">Aucune tâche pour le moment.</div>
-                        ) : (
-                            tasks.map(t => (
-                                <div key={t.id} className={`task-item ${t.is_done ? 'done' : ''}`}>
-                                    <div className="checkbox" onClick={() => toggleTask(t)}>
-                                        {t.is_done && <div className="check-inner"></div>}
-                                    </div>
-                                    <div style={{flex:1, cursor:'pointer'}} onClick={() => toggleTask(t)}>
-                                        {t.text}
-                                    </div>
+                        {tasks.length === 0 ? <p style={{textAlign:'center', color:'#666', fontSize:'13px'}}>Aucune tâche en cours.<br/>Prêt pour le Lundi Admin ?</p> :
+                        tasks.map(t => (
+                            <div key={t.id} className={`task-item ${t.is_done ? 'done' : ''}`}>
+                                <div className="checkbox" onClick={() => toggleTask(t)}>{t.is_done && <div className="check-inner"></div>}</div>
+                                <div style={{flex:1, cursor:'pointer'}} onClick={() => toggleTask(t)}>
+                                    <div className={t.is_done ? 'done-text' : ''} style={{fontSize:'15px', fontWeight:'600'}}>{t.text}</div>
+                                    {t.is_done && <div className="meta-info">Validé par {t.last_updated_by} à {t.completed_at}</div>}
                                 </div>
-                            ))
-                        )}
+                            </div>
+                        ))}
                     </div>
-
                     <form className="footer-form" onSubmit={addTask}>
-                        <input
-                            type="text"
-                            placeholder="Nouvelle tâche..."
-                            value={text}
-                            onChange={(e) => setText(e.target.value)}
-                        />
+                        <input type="text" placeholder="Ajouter une mission..." value={text} onChange={e => setText(e.target.value)} />
                         <button type="submit">+</button>
                     </form>
                 </div>
             );
         }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
