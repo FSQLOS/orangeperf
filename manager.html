@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEST MANAGER</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body style="background: #FF7900; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif;">
+
+    <div id="root">
+        <h1>Si tu vois ce message orange, c'est que manager.html est ENFIN en ligne !</h1>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const SUPABASE_URL = 'https://phqdtypbrwxngqdjgoud.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY';
+
+        // Initialisation correcte pour la version CDN
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function App() {
+            return (
+                <div style={{textAlign: 'center', padding: '20px'}}>
+                    <h1 style={{fontSize: '24px'}}>🟠 MANAGER HUB SYNC</h1>
+                    <p>La page est bien chargée. Connexion Supabase en cours...</p>
+                    <button onClick={() => window.location.reload()} style={{padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold'}}>
+                        Rafraîchir la page
+                    </button>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
