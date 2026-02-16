@@ -4,33 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MANAGER HUB PRO</title>
+
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/f/ff/Orange_logo.svg">
     <meta name="theme-color" content="#FF7900">
+
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
     <style>
         body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 160px; }
         .orange { color: #FF7900; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .card { background: #1E1E1E; border-radius: 20px; padding: 15px; border: 1px solid #333; }
-        .task-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #2A2A2A; }
-        .checkbox { width: 26px; height: 26px; border: 2px solid #FF7900; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .check-inner { width: 14px; height: 14px; background: #FF7900; border-radius: 2px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+
+        /* Barre de filtres par collaborateur */
+        .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 10px; scrollbar-width: none; }
+        .filter-bar::-webkit-scrollbar { display: none; }
+        .filter-chip { background: #2A2A2A; padding: 8px 16px; border-radius: 20px; font-size: 13px; white-space: nowrap; border: 1px solid #444; cursor: pointer; transition: 0.2s; }
+        .filter-chip.active { background: #FF7900; border-color: #FF7900; color: white; font-weight: bold; }
+
+        .card { background: #1E1E1E; border-radius: 22px; padding: 15px; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .task-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #2A2A2A; }
+        .task-item:last-child { border-bottom: none; }
+
+        .checkbox { width: 28px; height: 28px; border: 2px solid #FF7900; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .check-inner { width: 16px; height: 16px; background: #FF7900; border-radius: 3px; }
+
         .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #1E1E1E; padding: 15px; border-top: 1px solid #333; z-index: 100; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
         .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 12px; border-radius: 12px; outline: none; font-size: 16px; width: 100%; }
-        button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; }
-        .badge { font-size: 10px; background: #333; padding: 3px 7px; border-radius: 5px; color: #FF7900; margin-top: 4px; display: inline-block; border: 1px solid #444; }
-        .timer-select { font-size: 11px; background: #121212; color: #FF7900; border: 1px solid #FF7900; border-radius: 6px; padding: 4px; }
+        input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 12px; border-radius: 12px; outline: none; font-size: 16px; width: 100%; -webkit-appearance: none; }
+
+        button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; active { opacity: 0.8; } }
+
+        .badge { font-size: 10px; background: #333; padding: 4px 8px; border-radius: 6px; color: #FF7900; margin-top: 5px; display: inline-block; border: 1px solid #444; margin-right: 5px; }
+        .timer-select { font-size: 12px; background: #121212; color: #FF7900; border: 1px solid #FF7900; border-radius: 7px; padding: 5px; width: auto; }
+        .user-tag { font-size: 10px; color: #666; cursor: pointer; text-decoration: underline; }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
     <script type="text/babel">
         const { useState, useEffect } = React;
         const supabaseClient = window.supabase.createClient('https://phqdtypbrwxngqdjgoud.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY');
@@ -38,15 +55,18 @@
         const PUSHOVER_GROUP_KEY = "gd3eebz7m51nws4efob68zcbge5xzz";
         const PUSHOVER_API_TOKEN = "amxg1ri2x75nxx91airuhmaxs1gdo3";
 
+        const STAFF = ["Steeve", "Mathieu", "Yannis", "Amaury", "Elliot", "Irvan", "Emrecan", "Ludovyk", "Johan", "Lucas", "Nico", "Jean-Max"];
+
         function App() {
             const [tasks, setTasks] = useState([]);
             const [text, setText] = useState('');
             const [date, setDate] = useState('');
+            const [filter, setFilter] = useState('TOUS');
             const [currentUser, setCurrentUser] = useState(localStorage.getItem('manager_name') || '');
 
             useEffect(() => {
                 if (!currentUser) {
-                    const name = prompt("Qui utilise l'application ? (Jean-Max, Nico, etc.)");
+                    const name = prompt("Qui utilise l'application ?");
                     if (name) {
                         localStorage.setItem('manager_name', name);
                         setCurrentUser(name);
@@ -58,82 +78,117 @@
             }, [currentUser]);
 
             async function fetchTasks() {
-                const { data } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
-                if (data) setTasks(data);
+                const { data } = await supabaseClient.from('tasks').select('*').is('is_done', false);
+                if (data) {
+                    // Tri Chronologique : Dates les plus proches en haut, tâches sans date en bas
+                    const sorted = data.sort((a, b) => {
+                        if (!a.due_date) return 1;
+                        if (!b.due_date) return -1;
+                        return new Date(a.due_date) - new Date(b.due_date);
+                    });
+                    setTasks(sorted);
+                }
             }
 
-            async function addTask(title = null) {
-                const finalTitle = (typeof title === 'string') ? title : text;
+            async function addTask(title = null, staffName = null) {
+                const finalTitle = title || text;
                 if (!finalTitle.trim()) return;
-                const payload = { text: finalTitle, is_done: false };
+
+                const payload = {
+                    text: staffName ? `${finalTitle} (${staffName})` : finalTitle,
+                    is_done: false,
+                    assigned_to: staffName || null
+                };
                 if (date) payload.due_date = date;
-                await supabaseClient.from('tasks').insert([payload]);
+
+                const { error } = await supabaseClient.from('tasks').insert([payload]);
+                if (error) alert("Erreur : " + error.message);
                 setText(''); setDate('');
             }
 
             async function toggleTask(task) {
                 const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
                 const { error } = await supabaseClient.from('tasks').update({
-                    is_done: !task.is_done,
+                    is_done: true,
                     last_updated_by: currentUser,
                     completed_at: now
                 }).eq('id', task.id);
 
-                if (!error && !task.is_done) {
+                if (!error) {
                     const formData = new FormData();
                     formData.append("token", PUSHOVER_API_TOKEN);
                     formData.append("user", PUSHOVER_GROUP_KEY);
-                    formData.append("title", "Tâche validée");
+                    formData.append("title", "Checklist validée ✅");
                     formData.append("message", `${currentUser} a fini : ${task.text}`);
                     formData.append("sound", "cashregister");
                     fetch("https://api.pushover.net/1/messages.json", { method: "POST", body: formData });
                 }
             }
 
-            async function setTimer(id, val) {
+            async function updateTimer(id, val) {
                 await supabaseClient.from('tasks').update({ timer_plan: val }).eq('id', id);
             }
+
+            // Filtrage intelligent : par colonne assigned_to ou par mention du nom dans le texte
+            const filteredTasks = filter === 'TOUS'
+                ? tasks
+                : tasks.filter(t => (t.assigned_to === filter) || (t.text.toLowerCase().includes(filter.toLowerCase())));
 
             return (
                 <div className="container">
                     <div className="header">
-                        <h2 style={{margin:0, fontSize:18}}>LUNDI <span className="orange">ADMIN</span></h2>
-                        <div style={{fontSize:10, color:'#666'}} onClick={() => { localStorage.clear(); location.reload(); }}>👤 {currentUser}</div>
+                        <h2 style={{margin:0, fontSize:20}}>LUNDI <span className="orange">ADMIN</span></h2>
+                        <span className="user-tag" onClick={() => { localStorage.clear(); location.reload(); }}>👤 {currentUser}</span>
+                    </div>
+
+                    <div className="filter-bar">
+                        <div className={`filter-chip ${filter === 'TOUS' ? 'active' : ''}`} onClick={() => setFilter('TOUS')}>Tous</div>
+                        {STAFF.map(s => (
+                            <div key={s} className={`filter-chip ${filter === s ? 'active' : ''}`} onClick={() => setFilter(s)}>{s}</div>
+                        ))}
                     </div>
 
                     <div className="card">
-                        {tasks.filter(t => !t.is_done).length === 0 ? <div style={{textAlign:'center', color:'#666', padding:20}}>Liste vide.</div> :
-                        tasks.filter(t => !t.is_done).map(t => (
-                            <div key={t.id} className="task-item">
-                                <div className="checkbox" onClick={() => toggleTask(t)}>{t.is_done && <div className="check-inner" />}</div>
-                                <div style={{flex:1}} onClick={() => toggleTask(t)}>
-                                    <div style={{fontSize:15, fontWeight:'500'}}>{t.text}</div>
-                                    <div style={{display:'flex', gap:6}}>
-                                        {t.due_date && <span className="badge">📅 {t.due_date}</span>}
-                                        {t.timer_plan && <span className="badge">⏱️ {t.timer_plan}</span>}
+                        {filteredTasks.length === 0 ? (
+                            <div style={{textAlign:'center', color:'#666', padding:30, fontSize:14}}>Aucune mission en cours pour {filter === 'TOUS' ? 'l\'équipe' : filter}.</div>
+                        ) : (
+                            filteredTasks.map(t => (
+                                <div key={t.id} className="task-item">
+                                    <div className="checkbox" onClick={() => toggleTask(t)}></div>
+                                    <div style={{flex:1}} onClick={() => toggleTask(t)}>
+                                        <div style={{fontSize:16, fontWeight:'500'}}>{t.text}</div>
+                                        <div style={{display:'flex', flexWrap:'wrap'}}>
+                                            {t.due_date && <span className="badge">📅 {new Date(t.due_date).toLocaleDateString('fr-FR')}</span>}
+                                            {t.timer_plan && <span className="badge">⏱️ {t.timer_plan}</span>}
+                                            {t.assigned_to && filter === 'TOUS' && <span className="badge" style={{color:'#999'}}>👤 {t.assigned_to}</span>}
+                                        </div>
                                     </div>
+                                    <select
+                                        className="timer-select"
+                                        value={t.timer_plan || ""}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => updateTimer(t.id, e.target.value)}
+                                    >
+                                        <option value="">⏱️</option>
+                                        <option value="15 min">15m</option>
+                                        <option value="30 min">30m</option>
+                                        <option value="45 min">45m</option>
+                                        <option value="1h00">1h</option>
+                                    </select>
                                 </div>
-                                <select className="timer-select" value={t.timer_plan || ""} onClick={(e)=>e.stopPropagation()} onChange={(e) => setTimer(t.id, e.target.value)}>
-                                    <option value="">Timer</option>
-                                    <option value="15 min">15m</option>
-                                    <option value="30 min">30m</option>
-                                    <option value="45 min">45m</option>
-                                    <option value="1h00">1h</option>
-                                </select>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
 
                     <div className="footer-form">
                         <div className="input-row">
-                            <input type="text" placeholder="Mission..." value={text} onChange={e => setText(e.target.value)} />
-                            <input style={{width:'140px'}} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                            <input type="text" placeholder="Mission ou projet..." value={text} onChange={e => setText(e.target.value)} />
+                            <input style={{width:'150px'}} type="date" value={date} onChange={e => setDate(e.target.value)} />
                         </div>
                         <div className="input-row">
-                            <select onChange={(e) => { if(e.target.value) addTask("Entretien avec " + e.target.value); e.target.value = ""; }}>
-                                <option value="">👤 Entretien équipe...</option>
-                                <option value="Jean-Max">Jean-Max</option>
-                                <option value="Nico">Nico</option>
+                            <select onChange={(e) => { if(e.target.value) addTask("Entretien", e.target.value); e.target.value = ""; }}>
+                                <option value="">👤 Assigner / Entretien...</option>
+                                {STAFF.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                             <button className="add-btn" onClick={() => addTask()}>AJOUTER</button>
                         </div>
@@ -141,6 +196,7 @@
                 </div>
             );
         }
+
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
