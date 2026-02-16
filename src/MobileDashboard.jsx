@@ -34,7 +34,10 @@ export default function MobileDashboard({ config }) {
         APPLE: { label: "🍎 APPLE", color: "#1a1a1a" },
         SAMSUNG: { label: "🪐 SAMSUNG", color: "#034EA2" },
         DORO: { label: "👴 DORO", color: "#E6007E" },
-        XIAOMI: { label: "📱 XIAOMI / AUTRES", color: "#FF6700" },
+        XIAOMI: { label: "📱 XIAOMI", color: "#FF6700" },
+        HONOR: { label: "📱 HONOR", color: "#FF6800" },
+        CROSSCALL: { label: "📱 CROSSCALL", color: "#FF6900" },
+        GOOGLE: { label: "📱 GOOGLE", color: "#FF7000" },
         PROT: { label: "🛡️ PROTECTION", color: "#059669" },
         ACC: { label: "🎧 ACCESSOIRES", color: "#4b5563" },
         TRANSFERTS: { label: "📲 TRANSFERTS", color: "#4F46E5" },
@@ -71,7 +74,10 @@ export default function MobileDashboard({ config }) {
         if (l.includes("IPHONE") || l.includes("APPLE") || l.includes("AIRPOD")) return "APPLE";
         if (l.includes("SAMSUNG") || l.includes("GALAXY")) return "SAMSUNG";
         if (l.includes("DORO")) return "DORO";
-        if (l.includes("XIAOMI") || l.includes("REDMI") || l.includes("POCO") || l.includes("HONOR")) return "XIAOMI";
+        if (l.includes("XIAOMI") || l.includes("REDMI") || l.includes("POCO")) return "XIAOMI";
+        if (l.includes("HONOR")) return "HONOR";
+        if (l.includes("CROSSCALL") || l.includes("STELLAR")) return "CROSSCALL"
+        if (l.includes("GOOGLE PIXEL")) return "GOOGLE"
         if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT")) return "PROT";
         if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT")) return "ACC";
         if (l.includes("ASSURANCE") || l.includes("CYBER") || l.includes("SERVICE") || CODES.Assurance.includes(code)) return "SERV";
