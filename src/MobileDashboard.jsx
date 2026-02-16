@@ -25,6 +25,7 @@ export default function MobileDashboard({ config }) {
     const [globalData, setGlobalData] = useState({ ca: 0, assur: 0, counts: {} });
     const [viewMode, setViewMode] = useState('month');
     const [selectedSeller, setSelectedSeller] = useState(null);
+    const [compareMode, setCompareMode] = useState(null);
     const [caModal, setCaModal] = useState(false);
     const [teamMap, setTeamMap] = useState({});
 
@@ -85,11 +86,7 @@ export default function MobileDashboard({ config }) {
         fetch(finalUrl)
         .then(r => r.text())
         .then(t => {
-            Papa.parse(t, {
-                header: true,
-                skipEmptyLines: true,
-                complete: r => { processData(r.data); setRefreshing(false); }
-            });
+            Papa.parse(t, { header: true, skipEmptyLines: true, complete: r => { processData(r.data); setRefreshing(false); } });
         })
         .catch(() => setRefreshing(false));
     };
@@ -99,11 +96,7 @@ export default function MobileDashboard({ config }) {
     const processData = (data) => {
         let currentTeamMap = {};
         if (config?.team) {
-            config.team.trim().split('\n').forEach(line => {
-                if (line.includes(':')) {
-                    const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim();
-                }
-            });
+            config.team.trim().split('\n').forEach(line => { if (line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); } });
         }
         setTeamMap(currentTeamMap);
         const teamCodes = Object.keys(currentTeamMap);
@@ -121,7 +114,6 @@ export default function MobileDashboard({ config }) {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
             let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
             if (!rowDate) return;
-
             let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
             let isToday = todayFormats.some(f => rowDate.includes(f));
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
@@ -134,10 +126,9 @@ export default function MobileDashboard({ config }) {
                 if (lib.startsWith("WP")) return;
 
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k))) && !KEY_NOT_TERM.some(k => lib.includes(k));
-                let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND"));
+                let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
                 let isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
                 let fam = getFamily(lib, codeArt);
-
                 let ht = (!isTerm && !isBlacklisted) ? caVal / 1.2 : 0;
                 const article = { lib, fam, ca: caVal };
 
@@ -145,7 +136,6 @@ export default function MobileDashboard({ config }) {
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
                 tMonth[v].tickets[ticketId].items.push(article);
 
-                // Comptage KPI
                 if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
                 if (fam === "ACC" || fam === "PROT") { tMonth[v].nbAcc++; }
                 if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
@@ -153,6 +143,7 @@ export default function MobileDashboard({ config }) {
                 if (CODES.MIG.includes(codeArt)) { tMonth[v].MIG++; g_Counts.MIG++; }
                 if (CODES.MEV.includes(codeArt)) { tMonth[v].MEV++; g_Counts.MEV++; }
                 if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
+                if (CODES.MP.includes(codeArt)) { tMonth[v].MP++; g_Counts.MP++; }
                 if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
 
                 if (isToday) {
@@ -174,48 +165,83 @@ export default function MobileDashboard({ config }) {
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
 
-    const mInfo = getMonthInfo();
-    const objTotalCA = config?.objectifs?.CA || 0;
-    const prorataTarget = Math.round(objTotalCA * mInfo.pct);
-    const diffCA = Math.round(globalData.ca - prorataTarget);
-    const isAhead = diffCA >= 0;
+    const getCategoryStyle = (cat) => {
+        const styles = {
+            'Terminaux': { icon: <Smartphone size={16} />, color: '#1a1a1a', label: 'Terminaux', grad: 'linear-gradient(135deg, #e0e0e0, #ffffff)' },
+            'Mobile': { icon: <Activity size={16} />, color: '#FF7900', label: 'Mobile', grad: 'linear-gradient(135deg, #FF7900, #ff9e42)' },
+            'Broadband': { icon: <Wifi size={16} />, color: '#527EDB', label: 'Box', grad: 'linear-gradient(135deg, #527EDB, #82aaff)' },
+            'MIG': { icon: <Zap size={16} />, color: '#FFCC00', label: 'MIG', grad: 'linear-gradient(135deg, #FFCC00, #ffe066)' },
+            'MEV': { icon: <TrendingUp size={16} />, color: '#856404', label: 'MEV', grad: 'linear-gradient(135deg, #d4a017, #f6c23e)' },
+            'Cyber': { icon: <Shield size={16} />, color: '#6f42c1', label: 'Cyber', grad: 'linear-gradient(135deg, #6f42c1, #a66efa)' },
+            'MP': { icon: <Home size={16} />, color: '#32C832', label: 'Maison P.', grad: 'linear-gradient(135deg, #32C832, #6cdf6c)' }
+        };
+        return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
+    };
 
-    if (loading) return <div className="loader-screen">Initialisation du Dashboard...</div>;
+    const openGlobalComparison = (category) => {
+        const nbVendeurs = Object.keys(teamMap).length || 1;
+        const objectives = config?.objectifs || {};
+        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((objectives[category] || 0) / nbVendeurs) : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
+        const data = Object.keys(currentStats).map(code => {
+            const s = currentStats[code];
+            let val = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
+            let color = (val >= indivTarget) ? '#10b981' : (val >= indivTarget / 2 ? '#f59e0b' : '#ef4444');
+            return { name: teamMap[code] || code, val, color };
+        }).sort((a, b) => b.val - a.val);
+        setCompareMode({ category, data, isPercent: category === 'TxAssur', target: indivTarget });
+    };
+
+    const mInfo = getMonthInfo();
+    const isAhead = (globalData.ca - (config?.objectifs?.CA * mInfo.pct)) >= 0;
+
+    if (loading) return <div className="loader-screen">Chargement...</div>;
 
     return (
         <div className="modern-dashboard">
-        {/* HEADER */}
         <div className="header-glass">
         <div className="header-content">
         <div className="subtitle">Orange Boutique</div>
-        <div className="title">Performance <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
+        <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
         <div className={`ca-badge ${isAhead ? 'trending-up' : 'trending-down'}`} onClick={() => setCaModal(true)}>
-        <div className="ca-data">
-        <span className="ca-label">CA ACC. HT</span>
-        <span className="ca-val">{Math.round(globalData.ca)}€</span>
-        </div>
+        <div className="ca-val">{Math.round(globalData.ca)}€</div>
         </div>
         <button className={`refresh-btn ${refreshing ? 'spinning' : ''}`} onClick={fetchData}><RefreshCw size={20} /></button>
         </div>
 
-        <div className="quick-actions">
-        <div className="toggle-container mini">
-        <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}>Jour</div>
-        <div className={`toggle-btn ${viewMode === 'month' ? 'active' : ''}`} onClick={() => setViewMode('month')}>Mois</div>
-        </div>
-        <button className="celebrate-btn" onClick={() => confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } })}><Star size={14} /> Bravo</button>
+        <div className="toggle-container">
+        <div className={`toggle-btn ${viewMode === 'day' ? 'active' : ''}`} onClick={() => setViewMode('day')}><Clock size={14} /> Jour</div>
+        <div className={`toggle-btn ${viewMode === 'month' ? 'active' : ''}`} onClick={() => setViewMode('month')}><Calendar size={14} /> Mois</div>
         </div>
 
         <div className="scroll-content">
-        <div className="section-label">🏆 CLASSEMENT & TAUX</div>
+        <div className="section-label">🎯 ÉQUIPE</div>
+        <div className="global-scroll">
+        <div className="stat-card featured" onClick={() => openGlobalComparison('TxAssur')}>
+        <div className="circular-wrap">
+        <CircularProgressbar value={globalData.assur} text={`${globalData.assur}%`} styles={buildStyles({ pathColor: '#fff', textColor: '#fff', trailColor: 'rgba(255,255,255,0.3)' })} />
+        </div>
+        <div className="card-label">Taux Assur</div>
+        </div>
+        {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
+            const style = getCategoryStyle(key);
+            const count = viewMode === 'month' ? (globalData.counts[key] || 0) : Object.values(currentStats).reduce((acc, s) => acc + (s[key] || 0), 0);
+            return (
+                <div key={key} className="stat-card" onClick={() => openGlobalComparison(key)}>
+                <div className="icon-badge" style={{ background: style.grad }}>{style.icon}</div>
+                <div className="stat-value">{count}</div>
+                <div className="card-label">{style.label}</div>
+                </div>
+            )
+        })}
+        </div>
+
+        <div className="section-label">🏆 CLASSEMENT</div>
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
             const s = currentStats[code];
             if (s.CA === 0 && s.Terminaux === 0) return null;
             const name = teamMap[code] || code;
-
-            // CALCUL DES TAUX SPECIFIQUES
             const attachRate = s.Terminaux > 0 ? (s.nbAcc / s.Terminaux).toFixed(1) : 0;
             const tauxReco = s.Terminaux > 0 ? Math.round((s.Reco / s.Terminaux) * 100) : 0;
             const baseCyber = (s.Broadband + s.MIG + s.MEV + s.Mobile);
@@ -230,24 +256,11 @@ export default function MobileDashboard({ config }) {
                 <div className="basic-kpis">📱 {s.Terminaux} <span className="sep">|</span> 🛡️ {s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0}%</div>
                 </div>
                 </div>
-
                 <div className="seller-metrics">
-                <div className="metric-pill acc" title="Attach Rate Accessoires">
-                <span className="label">ACC</span>
-                <span className="val">{attachRate}</span>
-                </div>
-                <div className="metric-pill reco" title="Taux Reconditionné">
-                <Leaf size={10} />
-                <span className="val">{tauxReco}%</span>
-                </div>
-                <div className="metric-pill cyber" title="Pénétration Cybersecure">
-                <Shield size={10} />
-                <span className="val">{tauxCyber}%</span>
-                </div>
-                <div className="ca-box">
-                <div className="amount">{Math.round(s.CA)}€</div>
-                <ChevronRight size={14} color="#FF7900" />
-                </div>
+                <div className="metric-pill acc">ACC {attachRate}</div>
+                <div className="metric-pill reco"><Leaf size={10}/> {tauxReco}%</div>
+                <div className="metric-pill cyber"><Shield size={10}/> {tauxCyber}%</div>
+                <div className="ca-box"><strong>{Math.round(s.CA)}€</strong> <ChevronRight size={14} color="#FF7900" /></div>
                 </div>
                 </div>
             )
@@ -255,38 +268,51 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL CA */}
-        {caModal && (
-            <div className="glass-overlay" onClick={() => setCaModal(false)}>
-            <div className="glass-modal pop-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>Performance Boutique</h2><X onClick={() => setCaModal(false)} /></div>
-            <div className="ro-body">
-            <div className="ro-row"><span>Réalisé</span><strong>{Math.round(globalData.ca)} €</strong></div>
-            <div className="ro-row"><span>Objectif Prorata</span><strong>{prorataTarget} €</strong></div>
-            <div className={`ro-status-box ${isAhead ? 'success' : 'warning'}`}>
-            {isAhead ? <TrendingUp size={16}/> : <TrendingDown size={16}/>}
-            <span>{isAhead ? 'Avance' : 'Retard'} de <strong>{Math.abs(diffCA)} €</strong></span>
-            </div>
+        {compareMode && (
+            <div className="glass-overlay" onClick={() => setCompareMode(null)}>
+            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
+            <div className="modal-header"><h2>{compareMode.category}</h2><X onClick={() => setCompareMode(null)} /></div>
+            <div style={{height: '380px', padding: '10px'}}>
+            <Bar
+            data={{ labels: compareMode.data.map(d => d.name), datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 8, barThickness: 28 }] }}
+            options={{
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                layout: { padding: { right: 45, left: 10 } },
+                plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', offset: 8, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') } },
+                         scales: { x: { display: false, beginAtZero: true, suggestedMax: Math.max(...compareMode.data.map(d => d.val)) * 1.2 }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } }
+            }}
+            />
             </div>
             </div>
             </div>
         )}
 
-        {/* MODAL VENDEUR */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
             <div className="modal-header"><h2>{selectedSeller.name}</h2><X onClick={() => setSelectedSeller(null)} /></div>
             <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
-                <div key={id} className="ticket-card">
-                <div className="ticket-meta"><span>#{id}</span><span>{ticket.date}</span></div>
-                {ticket.items.map((item, i) => (
-                    <div key={i} className="ticket-item">
-                    <span className="lib">{item.lib}</span>
-                    <span className="val">{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</span>
-                    </div>
-                ))}
+                <div key={id} className="ticket-group-card">
+                <div className="ticket-header">
+                <span><Receipt size={14}/> #{id}</span>
+                <span>{ticket.date}</span>
+                </div>
+                {Object.entries(FAMILIES).map(([famKey, famInfo]) => {
+                    const itemsInFam = ticket.items.filter(i => i.fam === famKey);
+                    if (itemsInFam.length === 0) return null;
+                    return (
+                        <div key={famKey} style={{marginBottom: '10px'}}>
+                        <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px'}}>{famInfo.label}</div>
+                        {itemsInFam.map((item, idx) => (
+                            <div key={idx} className="ticket-line">
+                            <span>{item.lib}</span>
+                            <strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong>
+                            </div>
+                        ))}
+                        </div>
+                    )
+                })}
                 </div>
             ))}
             </div>
@@ -295,32 +321,26 @@ export default function MobileDashboard({ config }) {
         )}
 
         <style jsx>{`
-            .loader-screen { height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8f9fa; font-family: sans-serif; font-weight: bold; }
-            .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
+            .loader-screen { height: 100vh; display: flex; align-items: center; justify-content: center; font-family: sans-serif; }
+            .global-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 10px 15px; scrollbar-width: none; }
+            .stat-card { min-width: 100px; background: white; border-radius: 20px; padding: 15px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+            .stat-card.featured { background: #FF7900; color: white; }
+            .circular-wrap { width: 50px; height: 50px; margin-bottom: 8px; }
+            .icon-badge { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; color: white; }
+            .stat-value { font-size: 18px; font-weight: 900; }
+            .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 4px; }
+            .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
             .seller-main-info { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
             .rank-badge { width: 22px; height: 22px; background: #1a1a1a; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
-            .name { font-weight: 800; font-size: 14px; color: #1a1a1a; }
-            .basic-kpis { font-size: 11px; color: #666; margin-top: 2px; }
-            .sep { color: #eee; margin: 0 4px; }
-
+            .name { font-weight: 800; font-size: 14px; }
+            .basic-kpis { font-size: 11px; color: #666; }
             .seller-metrics { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-            .metric-pill { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; }
-            .metric-pill.acc { background: #f0f4ff; color: #527EDB; border: 1px solid #d9e2ff; }
-            .metric-pill.reco { background: #e6f7ed; color: #10b981; border: 1px solid #b7ebc6; }
-            .metric-pill.cyber { background: #f5f0ff; color: #6f42c1; border: 1px solid #e3d3ff; }
-            .metric-pill .label { opacity: 0.6; font-size: 8px; }
-
-            .ca-box { margin-left: auto; display: flex; align-items: center; gap: 5px; background: #fff8f0; padding: 4px 8px; border-radius: 10px; }
-            .ca-box .amount { font-weight: 900; font-size: 13px; color: #FF7900; }
-
-            .ro-status-box { display: flex; align-items: center; gap: 10px; padding: 15px; border-radius: 12px; margin-top: 15px; }
-            .ro-status-box.success { background: #e6f7ed; color: #10b981; }
-            .ro-status-box.warning { background: #fff7e6; color: #FF7900; }
-
-            .ticket-card { background: #f9fafb; padding: 10px; border-radius: 12px; margin-bottom: 8px; }
-            .ticket-meta { display: flex; justify-content: space-between; font-size: 10px; color: #999; margin-bottom: 5px; }
-            .ticket-item { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; }
-            .ticket-item .lib { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; }
+            .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; display: flex; align-items: center; gap: 3px; }
+            .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; }
+            .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+            .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; marginBottom: 10px; font-size: 11px; color: #999; }
+            .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
+            .ticket-line span { color: #333; flex: 1; padding-right: 10px; }
             `}</style>
             </div>
     );
