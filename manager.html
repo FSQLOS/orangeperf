@@ -2,35 +2,140 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEST MANAGER</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Manager Hub - Boutique</title>
+
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/f/ff/Orange_logo.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-</head>
-<body style="background: #FF7900; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif;">
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-    <div id="root">
-        <h1>Si tu vois ce message orange, c'est que manager.html est ENFIN en ligne !</h1>
-    </div>
+    <style>
+        body { background: #F2F2F2; min-height: 100vh; padding: 20px; font-family: -apple-system, sans-serif; margin: 0; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .brand { display: flex; align-items: center; gap: 10px; }
+        .orange-box { width: 12px; height: 12px; background: #FF7900; }
+        .brand h1 { font-size: 18px; font-weight: 900; margin: 0; letter-spacing: -0.5px; }
+        .status { font-size: 10px; font-weight: bold; color: #10b981; display: flex; align-items: center; gap: 5px; }
+        .pulse { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: pulse 1.5s infinite; }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; background: white; font-weight: bold; color: #666; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+        .tab-btn.active { background: #1a1a1a; color: white; }
+
+        .card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .item { display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #F2F2F2; }
+        .item.done { opacity: 0.4; }
+        .checkbox { width: 24px; height: 24px; border: 2.5px solid #FF7900; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .inner-check { width: 12px; height: 12px; background: #FF7900; border-radius: 3px; }
+        .text-area { flex: 1; cursor: pointer; }
+        .text-area p { margin: 0; font-size: 14px; font-weight: 600; }
+        .text-area span { font-size: 10px; color: #999; }
+
+        .add-bar { display: flex; gap: 10px; margin-top: 20px; }
+        .add-bar input { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #DDD; outline: none; }
+        .add-bar button { width: 45px; height: 45px; background: #FF7900; color: white; border: none; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; }
+
+        .event { display: flex; align-items: center; gap: 15px; padding: 15px; background: #f9f9f9; border-radius: 15px; margin-bottom: 10px; }
+        .event-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
         const SUPABASE_URL = 'https://phqdtypbrwxngqdjgoud.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY';
-
-        // Initialisation correcte pour la version CDN
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         function App() {
+            const [tasks, setTasks] = useState([]);
+            const [newTaskText, setNewTaskText] = useState('');
+            const [view, setView] = useState('tasks');
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                fetchTasks();
+                const channel = supabase.channel('schema-db-changes')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => fetchTasks())
+                    .subscribe();
+
+                if ("Notification" in window) Notification.requestPermission();
+                return () => supabase.removeChannel(channel);
+            }, []);
+
+            async function fetchTasks() {
+                const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+                if (data) setTasks(data);
+                setLoading(false);
+            }
+
+            async function toggleTask(task) {
+                const newStatus = !task.is_done;
+                await supabase.from('tasks').update({ is_done: newStatus, last_updated_by: "bad Monkey" }).eq('id', task.id);
+                if (newStatus && Notification.permission === "granted") {
+                    new Notification("Tâche validée ✅", { body: `bad Monkey a fini : ${task.text}` });
+                }
+            }
+
+            async function addTask(e) {
+                e.preventDefault();
+                if (!newTaskText.trim()) return;
+                await supabase.from('tasks').insert([{ text: newTaskText, is_done: false }]);
+                setNewTaskText('');
+            }
+
+            if (loading) return <div style={{textAlign:'center', paddingTop:'50px'}}>Connexion Live...</div>;
+
             return (
-                <div style={{textAlign: 'center', padding: '20px'}}>
-                    <h1 style={{fontSize: '24px'}}>🟠 MANAGER HUB SYNC</h1>
-                    <p>La page est bien chargée. Connexion Supabase en cours...</p>
-                    <button onClick={() => window.location.reload()} style={{padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold'}}>
-                        Rafraîchir la page
-                    </button>
+                <div>
+                    <div className="header">
+                        <div className="brand"><div className="orange-box"></div><h1>MANAGER HUB</h1></div>
+                        <div className="status"><div className="pulse"></div> LIVE SYNC</div>
+                    </div>
+
+                    <div className="tabs">
+                        <button className={`tab-btn ${view === 'tasks' ? 'active' : ''}`} onClick={() => setView('tasks')}>Checklist</button>
+                        <button className={`tab-btn ${view === 'calendar' ? 'active' : ''}`} onClick={() => setView('calendar')}>Agenda</button>
+                    </div>
+
+                    {view === 'tasks' ? (
+                        <div className="card">
+                            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
+                                <strong>Lundi Admin</strong>
+                                <span style={{color:'#FF7900'}}>{tasks.filter(t=>t.is_done).length}/{tasks.length}</span>
+                            </div>
+                            {tasks.map(task => (
+                                <div key={task.id} className={`item ${task.is_done ? 'done' : ''}`}>
+                                    <div className="checkbox" onClick={() => toggleTask(task)}>
+                                        {task.is_done && <div className="inner-check"></div>}
+                                    </div>
+                                    <div className="text-area" onClick={() => toggleTask(task)}>
+                                        <p>{task.text}</p>
+                                        <span>Par {task.last_updated_by || 'En attente'}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            <form className="add-bar" onSubmit={addTask}>
+                                <input type="text" placeholder="Nouvelle tâche..." value={newTaskText} onChange={e => setNewTaskText(e.target.value)} />
+                                <button type="submit">+</button>
+                            </form>
+                        </div>
+                    ) : (
+                        <div className="card">
+                            <h3>Agenda Boutique</h3>
+                            <div className="event"><div className="event-icon" style={{background:'#527EDB'}}>📅</div><div><strong>Reporting Hebdo</strong><br/><small>Lundi matin</small></div></div>
+                            <div className="event"><div className="event-icon" style={{background:'#10b981'}}>📦</div><div><strong>Stocks Mobiles</strong><br/><small>Jeudi soir</small></div></div>
+                        </div>
+                    )}
                 </div>
             );
         }
