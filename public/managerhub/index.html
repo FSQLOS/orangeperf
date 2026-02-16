@@ -4,18 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MANAGER HUB PRO</title>
-
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/f/ff/Orange_logo.svg">
     <meta name="theme-color" content="#FF7900">
-
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
     <style>
         body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 160px; }
         .orange { color: #FF7900; }
@@ -38,22 +35,27 @@
         const { useState, useEffect } = React;
         const supabaseClient = window.supabase.createClient('https://phqdtypbrwxngqdjgoud.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY');
 
-        // CLÉS PUSHOVER (GROUPE)
         const PUSHOVER_GROUP_KEY = "gd3eebz7m51nws4efob68zcbge5xzz";
         const PUSHOVER_API_TOKEN = "amxg1ri2x75nxx91airuhmaxs1gdo3";
-
-        const TASKS_LUNDI = ["Envoyer les assurances", "Répondre aux avis client", "Contrôles hebdomadaire", "Checker les chiffres", "Mettre à jour Orange Perf", "Checker les plateaux", "Remise en banque", "Focus", "Formations Campus"];
 
         function App() {
             const [tasks, setTasks] = useState([]);
             const [text, setText] = useState('');
             const [date, setDate] = useState('');
+            const [currentUser, setCurrentUser] = useState(localStorage.getItem('manager_name') || '');
 
             useEffect(() => {
+                if (!currentUser) {
+                    const name = prompt("Qui utilise l'application ? (Jean-Max, Nico, etc.)");
+                    if (name) {
+                        localStorage.setItem('manager_name', name);
+                        setCurrentUser(name);
+                    }
+                }
                 fetchTasks();
                 const ch = supabaseClient.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>fetchTasks()).subscribe();
                 return () => supabaseClient.removeChannel(ch);
-            }, []);
+            }, [currentUser]);
 
             async function fetchTasks() {
                 const { data } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
@@ -63,12 +65,9 @@
             async function addTask(title = null) {
                 const finalTitle = (typeof title === 'string') ? title : text;
                 if (!finalTitle.trim()) return;
-
                 const payload = { text: finalTitle, is_done: false };
                 if (date) payload.due_date = date;
-
-                const { error } = await supabaseClient.from('tasks').insert([payload]);
-                if (error) alert("Erreur : " + error.message);
+                await supabaseClient.from('tasks').insert([payload]);
                 setText(''); setDate('');
             }
 
@@ -76,7 +75,7 @@
                 const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
                 const { error } = await supabaseClient.from('tasks').update({
                     is_done: !task.is_done,
-                    last_updated_by: "bad Monkey",
+                    last_updated_by: currentUser,
                     completed_at: now
                 }).eq('id', task.id);
 
@@ -84,8 +83,8 @@
                     const formData = new FormData();
                     formData.append("token", PUSHOVER_API_TOKEN);
                     formData.append("user", PUSHOVER_GROUP_KEY);
-                    formData.append("title", "Checklist Boutique");
-                    formData.append("message", `bad Monkey a fini : ${task.text}`);
+                    formData.append("title", "Tâche validée");
+                    formData.append("message", `${currentUser} a fini : ${task.text}`);
                     formData.append("sound", "cashregister");
                     fetch("https://api.pushover.net/1/messages.json", { method: "POST", body: formData });
                 }
@@ -99,11 +98,11 @@
                 <div className="container">
                     <div className="header">
                         <h2 style={{margin:0, fontSize:18}}>LUNDI <span className="orange">ADMIN</span></h2>
-                        <button onClick={async () => { if(confirm("Lancer Pack Lundi ?")) { for(const t of TASKS_LUNDI) await addTask(t); } }} style={{background:'#FF7900', border:'none', color:'white', padding:'6px 12px', borderRadius:8, fontSize:10, fontWeight:'bold'}}>+ PACK</button>
+                        <div style={{fontSize:10, color:'#666'}} onClick={() => { localStorage.clear(); location.reload(); }}>👤 {currentUser}</div>
                     </div>
 
                     <div className="card">
-                        {tasks.filter(t => !t.is_done).length === 0 ? <div style={{textAlign:'center', color:'#666', padding:20}}>Toutes les missions sont accomplies ! ✨</div> :
+                        {tasks.filter(t => !t.is_done).length === 0 ? <div style={{textAlign:'center', color:'#666', padding:20}}>Liste vide.</div> :
                         tasks.filter(t => !t.is_done).map(t => (
                             <div key={t.id} className="task-item">
                                 <div className="checkbox" onClick={() => toggleTask(t)}>{t.is_done && <div className="check-inner" />}</div>
@@ -127,7 +126,7 @@
 
                     <div className="footer-form">
                         <div className="input-row">
-                            <input type="text" placeholder="Nouvelle mission..." value={text} onChange={e => setText(e.target.value)} />
+                            <input type="text" placeholder="Mission..." value={text} onChange={e => setText(e.target.value)} />
                             <input style={{width:'140px'}} type="date" value={date} onChange={e => setDate(e.target.value)} />
                         </div>
                         <div className="input-row">
