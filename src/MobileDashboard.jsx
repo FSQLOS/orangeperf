@@ -139,7 +139,7 @@ export default function MobileDashboard({ config }) {
                 if (lib.startsWith("WP")) return;
 
                 const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
-                const isNonMobileAcc = lib.includes("PARAFOUDRE") || lib.includes("MULTIPRISE") || lib.includes("GIGASET") || lib.includes("ALCATEL");
+                const isParafoudre = lib.includes("PARAFOUDRE") || lib.includes("MULTIPRISE") || lib.includes("GIGASET") || lib.includes("ALCATEL");
                 const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
                 const isPret = lib.includes("PRET");
                 const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
@@ -175,7 +175,10 @@ export default function MobileDashboard({ config }) {
                 tMonth[v].tickets[ticketId].items.push(article);
 
                 if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
-                if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1 && !isParafoudre) { tMonth[v].nbAcc++; }
+
+                if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1 && !isParafoudre) {
+                    tMonth[v].nbAcc++;
+                }
 
                 if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
                 if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
@@ -190,7 +193,7 @@ export default function MobileDashboard({ config }) {
                     if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
                     tDay[v].tickets[ticketId].items.push(article);
                     if (isTerm) { tDay[v].Terminaux++; if(isReco) tDay[v].Reco++; }
-                    if (fam === "ACC" || fam === "PROT" || isWatch) tDay[v].nbAcc++;
+                    if ((fam === "ACC" || fam === "PROT" || isWatch) && !isParafoudre) tDay[v].nbAcc++;
                     if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
                 }
             }
@@ -309,6 +312,31 @@ export default function MobileDashboard({ config }) {
                 </div>
             )
         })}
+        </div>
+
+        <div className="section-label">📖 LÉGENDE DES INDICATEURS</div>
+        <div className="legend-container">
+        <div className="legend-group">
+        <h3>Volumes (Totaux)</h3>
+        <div className="legend-grid">
+        <div className="legend-item"><Smartphone size={14}/> <span>Terminaux (Neufs + Reco)</span></div>
+        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles (Ventes/Exclu)</span></div>
+        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox (Fibre/ADSL)</span></div>
+        <div className="legend-item"><Shield size={14} color="#666"/> <span>Nombre d'Assurances</span></div>
+        <div className="legend-item"><Zap size={14} color="#FFCC00"/> <span>MIG (Migrations vers Fibre)</span></div>
+        <div className="legend-item"><TrendingUp size={14} color="#856404"/> <span>MEV (Montées en Version)</span></div>
+        <div className="legend-item"><Home size={14} color="#32C832"/> <span>Maison Protégée</span></div>
+        </div>
+        </div>
+        <div className="legend-group">
+        <h3>Taux de performance (%)</h3>
+        <div className="legend-grid">
+        <div className="legend-item"><div className="pill-mini acc">ACC</div> <span>Nb Accessoires / Nb Terminaux</span></div>
+        <div className="legend-item"><div className="pill-mini reco"><Leaf size={10}/></div> <span>Taux de Reconditionné / Terminaux</span></div>
+        <div className="legend-item"><div className="pill-mini cyber"><Shield size={10}/></div> <span>Pénétration Cyber / (Box+Mig+Mev+Mob)</span></div>
+        <div className="legend-item">🛡️ <span>Taux d'Assurance / Terminaux</span></div>
+        </div>
+        </div>
         </div>
         </div>
 
