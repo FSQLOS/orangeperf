@@ -78,6 +78,7 @@ export default function MobileDashboard({ config }) {
         if (l.includes("CYBER")) return "HOME";
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
         if (CODES.Broadband.includes(code)) return "BOX";
+        if (CODES.Mobile.includes(code)) return "FORFAIT MOBILE"
 
         // 2. Ensuite seulement on check les marques pour les terminaux restants
         if (l.includes("IPHONE") || l.includes("APPLE")) return "APPLE";
