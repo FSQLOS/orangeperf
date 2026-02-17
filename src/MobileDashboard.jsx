@@ -143,6 +143,9 @@ export default function MobileDashboard({ config }) {
                 && !lib.includes("COQUE")
                 && !lib.includes("ETUI")
                 && !lib.includes("PROTECTION")
+                && !lib.includes("WATCH")
+                && !lib.includes("MONTRE")
+                && !lib.includes("M/L")
                 && caVal > 10
                 && !lib.includes("PRET");
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
