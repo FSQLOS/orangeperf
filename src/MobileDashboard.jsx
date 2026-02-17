@@ -143,17 +143,13 @@ export default function MobileDashboard({ config }) {
                 && caVal > 10
                 && !lib.includes("PRET");
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
-                let isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
-                let fam = getFamily(lib, codeArt);
-                // On définit si l'article est un service de transfert
-                const isTransfert = l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER") || l.includes("TRANSFERT") || l.includes("CONFIGURATION");
-                // Le CA HT n'est calculé QUE si :
-                // - Ce n'est pas un terminal (isTerm)
-                // - Ce n'est pas dans la liste noire (isBlacklisted)
-                // - Ce n'est pas un transfert (isTransfert)
-                let ht = (!isTerm && !isBlacklisted && !isTransfert) ? caVal / 1.2 : 0;
-                const article = { lib, fam, ca: caVal };
+                const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
+                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
 
+                let ht = (!isTerm && !isBlacklisted && !isTransfert) ? caVal / 1.2 : 0;
+
+                let fam = getFamily(lib, codeArt);
+                const article = { lib, fam, ca: caVal };
                 tMonth[v].CA += ht; g_CA += ht;
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
                 tMonth[v].tickets[ticketId].items.push(article);
