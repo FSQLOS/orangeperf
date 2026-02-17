@@ -175,7 +175,7 @@ export default function MobileDashboard({ config }) {
                 tMonth[v].tickets[ticketId].items.push(article);
 
                 if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
-                if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1) { tMonth[v].nbAcc++; }
+                if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1 && !isParafoudre) { tMonth[v].nbAcc++; }
 
                 if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
                 if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
