@@ -70,6 +70,7 @@ export default function MobileDashboard({ config }) {
 
     const getFamily = (lib, code) => {
         const l = lib.toUpperCase();
+        if (l.includes("PARAFOUDRE") || l.includes("MULTIPRISE")) return "AUTRE";
         if (l.includes("PRET")) return "PRET";
         if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
         if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("BRACELET") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("ENCEINTE") || l.includes("AIRPODS") || l.includes("BANDOULIERE") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("WATCH") || l.includes("M/L") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
@@ -138,6 +139,7 @@ export default function MobileDashboard({ config }) {
                 if (lib.startsWith("WP")) return;
 
                 const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
+                const isNonMobileAcc = lib.includes("PARAFOUDRE") || lib.includes("MULTIPRISE") || lib.includes("GIGASET") || lib.includes("ALCATEL");
                 const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
                 const isPret = lib.includes("PRET");
                 const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
@@ -157,7 +159,7 @@ export default function MobileDashboard({ config }) {
                 let ht = 0;
                 if (isWatch) {
                     ht = caVal / 1.2;
-                } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret && !isForfait) {
+                } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret && !isForfait && !isParafoudre) {
                     ht = caVal / 1.2;
                 } else {
                     ht = 0;
