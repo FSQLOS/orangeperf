@@ -69,8 +69,6 @@ export default function MobileDashboard({ config }) {
 
     const getFamily = (lib, code) => {
         const l = lib.toUpperCase();
-
-        // 1. On check d'abord si c'est de l'accessoire ou du service (Priorité haute)
         if (l.includes("PRET")) return "PRET";
         if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
         if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("BRACELET") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("ENCEINTE") || l.includes("AIRPODS") || l.includes("BANDOULIERE") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("WATCH") || l.includes("M/L") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
@@ -79,7 +77,6 @@ export default function MobileDashboard({ config }) {
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
         if (CODES.Broadband.includes(code)) return "BOX";
 
-        // 2. Ensuite seulement on check les marques pour les terminaux restants
         if (l.includes("IPHONE") || l.includes("APPLE")) return "APPLE";
         if (l.includes("SAMSUNG") || l.includes("GALAXY")) return "SAMSUNG";
         if (l.includes("DORO")) return "DORO";
@@ -138,33 +135,50 @@ export default function MobileDashboard({ config }) {
                 let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
                 if (lib.startsWith("WP")) return;
 
+                // 1. DÉTECTION SPÉCIFIQUE MONTRE
+                const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
+
+                // 2. LOGIQUE TERMINAUX (On exclut les montres, les accessoires et les prêts)
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
                 && !KEY_NOT_TERM.some(k => lib.includes(k))
+                && !isWatch
                 && !lib.includes("COQUE")
                 && !lib.includes("ETUI")
                 && !lib.includes("PROTECTION")
-                && !lib.includes("WATCH")
-                && !lib.includes("MONTRE")
-                && !lib.includes("M/L")
-                && caVal > 10
+                && caVal > 15
                 && !lib.includes("PRET");
+
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
+
+                // 3. LOGIQUE CA HT
                 const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
                 const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
-                const isFixe = lib.includes("GIGASET") || lib.includes("DECT") || lib.includes("FIXE") || lib.includes("ALCATEL");
                 const isPret = lib.includes("PRET");
 
-                let ht = (!isTerm && !isBlacklisted && !isTransfert && !isPret) ? caVal / 1.2 : 0;
+                let ht = 0;
+                // Si c'est une montre, on force le CA HT même si des filtres bloquent ailleurs
+                if (isWatch) {
+                    ht = caVal / 1.2;
+                } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret) {
+                    ht = caVal / 1.2;
+                }
 
                 let fam = getFamily(lib, codeArt);
                 const article = { lib, fam, ca: caVal };
-                tMonth[v].CA += ht; g_CA += ht;
+
+                // Accumulation CA
+                tMonth[v].CA += ht;
+                g_CA += ht;
+
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
                 tMonth[v].tickets[ticketId].items.push(article);
 
-                if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
-                // On ne compte l'accessoire que s'il a une valeur réelle (ex: > 1€)
-                // pour éviter de compter les sacs ou les petits services gratuits
+                // Compteurs Volumes
+                if (isTerm) {
+                    tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++;
+                    if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; }
+                }
+
                 if ((fam === "ACC" || fam === "PROT") && caVal > 1) { tMonth[v].nbAcc++; }
                 if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
                 if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
@@ -179,7 +193,7 @@ export default function MobileDashboard({ config }) {
                     if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
                     tDay[v].tickets[ticketId].items.push(article);
                     if (isTerm) { tDay[v].Terminaux++; if(isReco) tDay[v].Reco++; }
-                    if (fam === "ACC" || fam === "PROT") tDay[v].nbAcc++;
+                    if ((fam === "ACC" || fam === "PROT") && caVal > 1) tDay[v].nbAcc++;
                     if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
                 }
             }
@@ -300,33 +314,21 @@ export default function MobileDashboard({ config }) {
         })}
         </div>
 
-        {/* --- SECTION LÉGENDE --- */}
-        <div className="section-label">📖 LÉGENDE DES INDICATEURS</div>
+        <div className="section-label">📖 LÉGENDE</div>
         <div className="legend-container">
         <div className="legend-group">
-        <h3>Volumes (Totaux)</h3>
+        <h3>Volumes</h3>
         <div className="legend-grid">
         <div className="legend-item"><Smartphone size={14}/> <span>Terminaux (Neufs + Reco)</span></div>
-        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles (Ventes/Exclu)</span></div>
-        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox (Fibre/ADSL)</span></div>
-        <div className="legend-item"><Shield size={14} color="#666"/> <span>Nombre d'Assurances</span></div>
-        <div className="legend-item"><Zap size={14} color="#FFCC00"/> <span>MIG (Migrations vers Fibre)</span></div>
-        <div className="legend-item"><TrendingUp size={14} color="#856404"/> <span>MEV (Montées en Version)</span></div>
-        <div className="legend-item"><Home size={14} color="#32C832"/> <span>Maison Protégée</span></div>
-        </div>
-        </div>
-        <div className="legend-group">
-        <h3>Taux de performance (%)</h3>
-        <div className="legend-grid">
-        <div className="legend-item"><div className="pill-mini acc">ACC</div> <span>Nb Accessoires / Nb Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini reco"><Leaf size={10}/></div> <span>Taux de Reconditionné / Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini cyber"><Shield size={10}/></div> <span>Pénétration Cyber / (Box+Mig+Mev+Mob)</span></div>
-        <div className="legend-item">🛡️ <span>Taux d'Assurance / Terminaux</span></div>
+        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles</span></div>
+        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox</span></div>
+        <div className="legend-item"><Shield size={14} color="#666"/> <span>Assurances</span></div>
         </div>
         </div>
         </div>
         </div>
 
+        {/* Modales de Comparaison et CA */}
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
             <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
@@ -336,9 +338,8 @@ export default function MobileDashboard({ config }) {
             data={{ labels: compareMode.data.map(d => d.name), datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 8, barThickness: 28 }] }}
             options={{
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                layout: { padding: { right: 45, left: 10 } },
                 plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', offset: 8, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') } },
-                         scales: { x: { display: false, beginAtZero: true, suggestedMax: Math.max(...compareMode.data.map(d => d.val)) * 1.2 }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } }
+                         scales: { x: { display: false, beginAtZero: true }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } }
             }}
             />
             </div>
@@ -366,10 +367,6 @@ export default function MobileDashboard({ config }) {
             <div className="ro-sublabel">Écart R/O</div>
             <div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div>
             </div>
-            </div>
-            <div className="ro-footer-card">
-            <div className="ro-footer-item"><span>Objectif Total Mois</span><strong>{objTotalCA} €</strong></div>
-            <div className="ro-footer-item"><span>Atterrissage estimé</span><strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong></div>
             </div>
             </div>
             </div>
@@ -404,53 +401,51 @@ export default function MobileDashboard({ config }) {
         )}
 
         <style jsx>{`
-            .loader-screen { height: 100vh; display: flex; align-items: center; justify-content: center; font-family: sans-serif; }
-            .global-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 10px 15px; scrollbar-width: none; }
-            .stat-card { min-width: 100px; background: white; border-radius: 20px; padding: 15px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+            .modern-dashboard { background: #f3f4f6; min-height: 100vh; font-family: sans-serif; padding-bottom: 20px; }
+            .loader-screen { height: 100vh; display: flex; align-items: center; justify-content: center; background: white; }
+            .header-glass { background: white; padding: 20px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+            .title { font-size: 20px; font-weight: 900; }
+            .title span { color: #FF7900; }
+            .subtitle { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+            .toggle-container { display: flex; background: #e5e7eb; margin: 15px; border-radius: 12px; padding: 4px; }
+            .toggle-btn { flex: 1; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; color: #666; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+            .toggle-btn.active { background: white; color: #FF7900; border-radius: 9px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+            .section-label { margin: 20px 15px 10px; font-size: 11px; font-weight: 900; color: #999; letter-spacing: 1px; }
+            .global-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 0 15px 15px; scrollbar-width: none; }
+            .global-scroll::-webkit-scrollbar { display: none; }
+            .stat-card { min-width: 105px; background: white; border-radius: 20px; padding: 15px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
             .stat-card.featured { background: #FF7900; color: white; }
-            .circular-wrap { width: 50px; height: 50px; margin-bottom: 8px; }
-            .icon-badge { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; color: white; }
-            .stat-value { font-size: 18px; font-weight: 900; }
-            .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 4px; }
+            .stat-value { font-size: 20px; font-weight: 900; margin-top: 5px; }
+            .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 2px; }
+            .circular-wrap { width: 45px; height: 45px; }
+            .icon-badge { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; }
             .ca-badge { background: #1a1a1a; color: white; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
             .ca-val { font-weight: 900; font-size: 15px; }
             .ca-trend-dot { width: 8px; height: 8px; border-radius: 50%; }
             .ca-badge.is-ahead .ca-trend-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
             .ca-badge.is-behind .ca-trend-dot { background: #ff4d4f; box-shadow: 0 0 8px #ff4d4f; }
-            .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-            .seller-main-info { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-            .rank-badge { width: 22px; height: 22px; background: #1a1a1a; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
-            .name { font-weight: 800; font-size: 14px; }
-            .basic-kpis { font-size: 11px; color: #666; }
-            .seller-metrics { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-            .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; display: flex; align-items: center; gap: 3px; }
-            .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; }
-            .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-            .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; }
-            .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
-            .ticket-line span { color: #333; flex: 1; padding-right: 10px; }
-
-            /* STYLE LÉGENDE */
-            .legend-container { background: white; margin: 0 15px 30px 15px; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
-            .legend-group { margin-bottom: 15px; }
-            .legend-group h3 { font-size: 12px; color: #FF7900; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #fff5eb; padding-bottom: 5px; }
-            .legend-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
-            .legend-item { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #444; }
-            .legend-item span { color: #666; }
-            .pill-mini { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; display: flex; align-items: center; }
-            .pill-mini.acc { background: #f0f4ff; color: #527EDB; }
-            .pill-mini.reco { background: #e6f7ed; color: #10b981; }
-            .pill-mini.cyber { background: #f5f0ff; color: #6f42c1; }
-
-            .ro-main-stat { text-align: center; margin-bottom: 20px; }
-            .ro-label { font-size: 14px; color: #666; }
-            .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
-            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-            .ro-card { border: 1px solid #eee; padding: 12px; border-radius: 15px; text-align: center; }
-            .ro-sublabel { font-size: 11px; color: #999; margin: 5px 0; }
-            .ro-subval { font-size: 16px; font-weight: bold; }
-            .ro-footer-card { background: #f9fafb; border-radius: 15px; padding: 15px; }
-            .ro-footer-item { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
+            .refresh-btn { background: #f3f4f6; border: none; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #666; cursor: pointer; }
+            .refresh-btn.spinning svg { animation: spin 1s linear infinite; }
+            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            .seller-card-v2 { background: white; margin: 0 15px 12px; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+            .seller-main-info { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+            .rank-badge { background: #f3f4f6; color: #1a1a1a; width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; }
+            .name { font-weight: 900; font-size: 15px; }
+            .basic-kpis { font-size: 11px; color: #999; margin-top: 2px; }
+            .seller-metrics { display: flex; align-items: center; gap: 8px; }
+            .metric-pill { background: #f9fafb; padding: 6px 10px; border-radius: 10px; font-size: 10px; font-weight: 900; color: #666; display: flex; align-items: center; gap: 4px; border: 1px solid #f0f0f0; }
+            .metric-pill.acc { border-color: #dbeafe; color: #1d4ed8; }
+            .ca-box { margin-left: auto; color: #FF7900; font-size: 14px; display: flex; align-items: center; gap: 4px; }
+            .glass-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+            .glass-modal { background: white; width: 100%; max-width: 450px; border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); overflow: hidden; }
+            .modal-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; }
+            .modal-header h2 { font-size: 18px; margin: 0; font-weight: 900; }
+            .ticket-group-card { background: #f9fafb; border-radius: 18px; padding: 15px; margin: 15px; }
+            .ticket-header { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; color: #999; margin-bottom: 10px; }
+            .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-bottom: 1px dashed #e5e7eb; }
+            .legend-container { background: white; margin: 0 15px 30px; border-radius: 22px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+            .legend-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+            .legend-item { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #666; }
             `}</style>
             </div>
     );
