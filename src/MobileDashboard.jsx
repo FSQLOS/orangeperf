@@ -31,6 +31,7 @@ export default function MobileDashboard({ config }) {
 
     const FAMILIES = {
         BOX: { label: "🌐 LIVEBOX", color: "#527EDB" },
+        FORFAIT: { label: "📱 FORFAIT MOBILE", color: "#FF7900" },
         PRET: { label: "🔄 PRÊT MOBILE", color: "#9ca3af" },
         APPLE: { label: "🍎 APPLE", color: "#1a1a1a" },
         SAMSUNG: { label: "🪐 SAMSUNG", color: "#034EA2" },
@@ -107,85 +108,86 @@ export default function MobileDashboard({ config }) {
 
     useEffect(() => { fetchData(); }, [config?.url]);
 
-    const processData = (data) => {
-        let currentTeamMap = {};
-        if (config?.team) {
-            config.team.trim().split('\n').forEach(line => { if (line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); } });
-        }
-        setTeamMap(currentTeamMap);
-        const teamCodes = Object.keys(currentTeamMap);
-        let tMonth = {}, tDay = {};
-        teamCodes.forEach(code => {
-            const empty = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0, CA: 0, nbAcc: 0, tickets: {} };
-            tMonth[code] = JSON.parse(JSON.stringify(empty)); tDay[code] = JSON.parse(JSON.stringify(empty));
-        });
+    data.forEach(row => {
+        let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
+        let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
+        if (!rowDate) return;
+        let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
+        let isToday = todayFormats.some(f => rowDate.includes(f));
+        let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
+        let v = teamCodes.find(code => vRaw.includes(code));
 
-        let g_CA = 0, g_Term = 0, g_Assur = 0, g_Counts = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0 };
-        const d = new Date();
-        const todayFormats = [`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, `${d.getDate()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`];
+        if (v) {
+            let codeArt = parseInt(cleanRow["Code Article"]);
+            let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
+            let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
+            if (lib.startsWith("WP")) return;
 
-        data.forEach(row => {
-            let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
-            let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
-            if (!rowDate) return;
-            let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
-            let isToday = todayFormats.some(f => rowDate.includes(f));
-            let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
-            let v = teamCodes.find(code => vRaw.includes(code));
+            // 1. DÉFINITION DES CATÉGORIES (Ordre important)
+            const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
+            const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
+            const isPret = lib.includes("PRET");
+            const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
+            const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
 
-            if (v) {
-                let codeArt = parseInt(cleanRow["Code Article"]);
-                let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
-                let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
-                if (lib.startsWith("WP")) return;
+            // 2. LOGIQUE TERMINAUX (Une montre n'est jamais un terminal)
+            let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
+            && !KEY_NOT_TERM.some(k => lib.includes(k))
+            && !isWatch
+            && !lib.includes("COQUE")
+            && !lib.includes("ETUI")
+            && !lib.includes("PROTECTION")
+            && caVal > 10
+            && !isPret;
 
-                let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
-                && !KEY_NOT_TERM.some(k => lib.includes(k))
-                && !lib.includes("COQUE")
-                && !lib.includes("ETUI")
-                && !lib.includes("PROTECTION")
-                && !lib.includes("WATCH")
-                && !lib.includes("MONTRE")
-                && !lib.includes("M/L")
-                && caVal > 10
-                && !lib.includes("PRET");
-                let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
-                const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
-                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
-                const isFixe = lib.includes("GIGASET") || lib.includes("DECT") || lib.includes("FIXE") || lib.includes("ALCATEL");
-                const isPret = lib.includes("PRET");
-                const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
+            let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
 
-                let ht = (!isTerm && !isBlacklisted && !isTransfert && !isPret) ? caVal / 1.2 : 0;
-
-                let fam = getFamily(lib, codeArt);
-                const article = { lib, fam, ca: caVal };
-                tMonth[v].CA += ht; g_CA += ht;
-                if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
-                tMonth[v].tickets[ticketId].items.push(article);
-
-                if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
-                // On ne compte l'accessoire que s'il a une valeur réelle (ex: > 1€)
-                // pour éviter de compter les sacs ou les petits services gratuits
-                if ((fam === "ACC" || fam === "PROT") && caVal > 1) { tMonth[v].nbAcc++; }
-                if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
-                if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
-                if (CODES.MIG.includes(codeArt)) { tMonth[v].MIG++; g_Counts.MIG++; }
-                if (CODES.MEV.includes(codeArt)) { tMonth[v].MEV++; g_Counts.MEV++; }
-                if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
-                if (CODES.MP.includes(codeArt)) { tMonth[v].MP++; g_Counts.MP++; }
-                if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
-
-                if (isToday) {
-                    tDay[v].CA += ht;
-                    if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
-                    tDay[v].tickets[ticketId].items.push(article);
-                    if (isTerm) { tDay[v].Terminaux++; if(isReco) tDay[v].Reco++; }
-                    if (fam === "ACC" || fam === "PROT") tDay[v].nbAcc++;
-                    if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
-                }
+            // 3. CALCUL DU CA HT (Version corrigée pour Emre)
+            let ht = 0;
+            if (isWatch) {
+                // Si c'est une montre, on force le CA peu importe le reste
+                ht = caVal / 1.2;
+            } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret && !isForfait) {
+                // Si ce n'est rien de bloquant, on calcule le CA accessoire
+                ht = caVal / 1.2;
+            } else {
+                // Terminaux, Forfaits, Prêts et Blacklist = 0€ de CA Accessoire
+                ht = 0;
             }
-        });
+
+            let fam = getFamily(lib, codeArt);
+            const article = { lib, fam, ca: caVal };
+
+            // Ajout au compteur vendeur et global
+            tMonth[v].CA += ht;
+            g_CA += ht;
+
+            if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
+            tMonth[v].tickets[ticketId].items.push(article);
+
+            if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
+
+            // On compte dans nbAcc (Montres incluses pour booster le taux d'attache d'Emre)
+            if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1) { tMonth[v].nbAcc++; }
+
+            if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
+            if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
+            if (CODES.MIG.includes(codeArt)) { tMonth[v].MIG++; g_Counts.MIG++; }
+            if (CODES.MEV.includes(codeArt)) { tMonth[v].MEV++; g_Counts.MEV++; }
+            if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
+            if (CODES.MP.includes(codeArt)) { tMonth[v].MP++; g_Counts.MP++; }
+            if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
+
+            if (isToday) {
+                tDay[v].CA += ht;
+                if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
+                tDay[v].tickets[ticketId].items.push(article);
+                if (isTerm) { tDay[v].Terminaux++; if(isReco) tDay[v].Reco++; }
+                if (fam === "ACC" || fam === "PROT" || isWatch) tDay[v].nbAcc++;
+                if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
+            }
+        }
+    });
 
         setGlobalData({ ca: g_CA, assur: g_Term > 0 ? Math.round((g_Assur / g_Term) * 100) : 0, counts: g_Counts });
         setStatsMonth(tMonth); setStatsDay(tDay);
