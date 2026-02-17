@@ -73,8 +73,9 @@ export default function MobileDashboard({ config }) {
         // 1. On check d'abord si c'est de l'accessoire ou du service (Priorité haute)
         if (l.includes("PRET")) return "PRET";
         if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
-        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
-        if (l.includes("ASSURANCE") || l.includes("CYBER") || l.includes("SERVICE") || CODES.Assurance.includes(code)) return "SERV";
+        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("BRACELET") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("ENCEINTE") || l.includes("AIRPODS") || l.includes("BANDOULIERE") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
+        if (l.includes("ASSURANCE") || CODES.Assurance.includes(code)) return "SERV";
+        if (l.includes("CYBER")) return "HOME";
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
         if (CODES.Broadband.includes(code)) return "BOX";
 
@@ -147,6 +148,7 @@ export default function MobileDashboard({ config }) {
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
                 const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
                 const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
+                const isFixe = lib.includes("GIGASET") || lib.includes("DECT") || lib.includes("FIXE") || lib.includes("ALCATEL");
                 const isPret = lib.includes("PRET");
 
                 let ht = (!isTerm && !isBlacklisted && !isTransfert && !isPret) ? caVal / 1.2 : 0;
