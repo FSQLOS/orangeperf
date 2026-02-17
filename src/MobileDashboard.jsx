@@ -70,8 +70,8 @@ export default function MobileDashboard({ config }) {
         const l = lib.toUpperCase();
 
         // 1. On check d'abord si c'est de l'accessoire ou du service (Priorité haute)
-        if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
-        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
+        if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
+        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
         if (l.includes("ASSURANCE") || l.includes("CYBER") || l.includes("SERVICE") || CODES.Assurance.includes(code)) return "SERV";
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
         if (CODES.Broadband.includes(code)) return "BOX";
@@ -145,7 +145,13 @@ export default function MobileDashboard({ config }) {
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
                 let isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
                 let fam = getFamily(lib, codeArt);
-                let ht = (!isTerm && !isBlacklisted) ? caVal / 1.2 : 0;
+                // On définit si l'article est un service de transfert
+                const isTransfert = l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER") || l.includes("TRANSFERT") || l.includes("CONFIGURATION");
+                // Le CA HT n'est calculé QUE si :
+                // - Ce n'est pas un terminal (isTerm)
+                // - Ce n'est pas dans la liste noire (isBlacklisted)
+                // - Ce n'est pas un transfert (isTransfert)
+                let ht = (!isTerm && !isBlacklisted && !isTransfert) ? caVal / 1.2 : 0;
                 const article = { lib, fam, ca: caVal };
 
                 tMonth[v].CA += ht; g_CA += ht;
