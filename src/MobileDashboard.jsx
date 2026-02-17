@@ -131,7 +131,10 @@ export default function MobileDashboard({ config }) {
                 let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
                 if (lib.startsWith("WP")) return;
 
-                let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k))) && !KEY_NOT_TERM.some(k => lib.includes(k));
+                let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
+                && !KEY_NOT_TERM.some(k => lib.includes(k))
+                && caVal > 10 // Un prêt à 0€ ou 1€ ne sera plus compté comme un mobile vendu
+                && !lib.includes("PRET");
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
                 let isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
                 let fam = getFamily(lib, codeArt);
@@ -143,7 +146,9 @@ export default function MobileDashboard({ config }) {
                 tMonth[v].tickets[ticketId].items.push(article);
 
                 if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
-                if (fam === "ACC" || fam === "PROT") { tMonth[v].nbAcc++; }
+                // On ne compte l'accessoire que s'il a une valeur réelle (ex: > 1€)
+                // pour éviter de compter les sacs ou les petits services gratuits
+                if ((fam === "ACC" || fam === "PROT") && caVal > 1) { tMonth[v].nbAcc++; }
                 if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
                 if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
                 if (CODES.MIG.includes(codeArt)) { tMonth[v].MIG++; g_Counts.MIG++; }
