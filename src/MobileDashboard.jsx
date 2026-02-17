@@ -68,19 +68,23 @@ export default function MobileDashboard({ config }) {
 
     const getFamily = (lib, code) => {
         const l = lib.toUpperCase();
-        if (CODES.Broadband.includes(code)) return "BOX";
+
+        // 1. On check d'abord si c'est de l'accessoire ou du service (Priorité haute)
+        if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("FORCE GLASS")) return "PROT";
+        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT") || l.includes("FORCE CASE")) return "ACC";
+        if (l.includes("ASSURANCE") || l.includes("CYBER") || l.includes("SERVICE") || CODES.Assurance.includes(code)) return "SERV";
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
-        if (l.includes("FORCE GLASS") || l.includes("FORCE CASE") || l.includes("SPRAY")) return "ACC";
-        if (l.includes("IPHONE") || l.includes("APPLE") || l.includes("AIRPOD")) return "APPLE";
+        if (CODES.Broadband.includes(code)) return "BOX";
+
+        // 2. Ensuite seulement on check les marques pour les terminaux restants
+        if (l.includes("IPHONE") || l.includes("APPLE")) return "APPLE";
         if (l.includes("SAMSUNG") || l.includes("GALAXY")) return "SAMSUNG";
         if (l.includes("DORO")) return "DORO";
         if (l.includes("XIAOMI") || l.includes("REDMI") || l.includes("POCO")) return "XIAOMI";
         if (l.includes("HONOR")) return "HONOR";
-        if (l.includes("CROSSCALL") || l.includes("STELLAR")) return "CROSSCALL"
-        if (l.includes("GOOGLE PIXEL")) return "GOOGLE"
-        if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT")) return "PROT";
-        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("AUDIO") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("USB") || l.includes("SUPPORT")) return "ACC";
-        if (l.includes("ASSURANCE") || l.includes("CYBER") || l.includes("SERVICE") || CODES.Assurance.includes(code)) return "SERV";
+        if (l.includes("CROSSCALL") || l.includes("STELLAR")) return "CROSSCALL";
+        if (l.includes("GOOGLE PIXEL")) return "GOOGLE";
+
         return "AUTRE";
     };
 
@@ -133,7 +137,10 @@ export default function MobileDashboard({ config }) {
 
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
                 && !KEY_NOT_TERM.some(k => lib.includes(k))
-                && caVal > 10 // Un prêt à 0€ ou 1€ ne sera plus compté comme un mobile vendu
+                && !lib.includes("COQUE")
+                && !lib.includes("ETUI")
+                && !lib.includes("PROTECTION")
+                && caVal > 10
                 && !lib.includes("PRET");
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
                 let isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
