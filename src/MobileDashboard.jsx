@@ -70,8 +70,6 @@ export default function MobileDashboard({ config }) {
 
     const getFamily = (lib, code) => {
         const l = lib.toUpperCase();
-
-        // 1. On check d'abord si c'est de l'accessoire ou du service (Priorité haute)
         if (l.includes("PRET")) return "PRET";
         if (l.includes("COQUE") || l.includes("ETUI") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
         if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("BRACELET") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("ENCEINTE") || l.includes("AIRPODS") || l.includes("BANDOULIERE") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("WATCH") || l.includes("M/L") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
@@ -79,9 +77,8 @@ export default function MobileDashboard({ config }) {
         if (l.includes("CYBER")) return "HOME";
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
         if (CODES.Broadband.includes(code)) return "BOX";
-        if (CODES.Mobile.includes(code)) return "FORFAIT MOBILE"
+        if (CODES.Mobile.includes(code)) return "FORFAIT";
 
-        // 2. Ensuite seulement on check les marques pour les terminaux restants
         if (l.includes("IPHONE") || l.includes("APPLE")) return "APPLE";
         if (l.includes("SAMSUNG") || l.includes("GALAXY")) return "SAMSUNG";
         if (l.includes("DORO")) return "DORO";
@@ -108,86 +105,94 @@ export default function MobileDashboard({ config }) {
 
     useEffect(() => { fetchData(); }, [config?.url]);
 
-    data.forEach(row => {
-        let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
-        let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
-        if (!rowDate) return;
-        let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
-        let isToday = todayFormats.some(f => rowDate.includes(f));
-        let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
-        let v = teamCodes.find(code => vRaw.includes(code));
-
-        if (v) {
-            let codeArt = parseInt(cleanRow["Code Article"]);
-            let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
-            let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
-            if (lib.startsWith("WP")) return;
-
-            // 1. DÉFINITION DES CATÉGORIES (Ordre important)
-            const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
-            const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
-            const isPret = lib.includes("PRET");
-            const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
-            const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
-
-            // 2. LOGIQUE TERMINAUX (Une montre n'est jamais un terminal)
-            let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
-            && !KEY_NOT_TERM.some(k => lib.includes(k))
-            && !isWatch
-            && !lib.includes("COQUE")
-            && !lib.includes("ETUI")
-            && !lib.includes("PROTECTION")
-            && caVal > 10
-            && !isPret;
-
-            let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
-
-            // 3. CALCUL DU CA HT (Version corrigée pour Emre)
-            let ht = 0;
-            if (isWatch) {
-                // Si c'est une montre, on force le CA peu importe le reste
-                ht = caVal / 1.2;
-            } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret && !isForfait) {
-                // Si ce n'est rien de bloquant, on calcule le CA accessoire
-                ht = caVal / 1.2;
-            } else {
-                // Terminaux, Forfaits, Prêts et Blacklist = 0€ de CA Accessoire
-                ht = 0;
-            }
-
-            let fam = getFamily(lib, codeArt);
-            const article = { lib, fam, ca: caVal };
-
-            // Ajout au compteur vendeur et global
-            tMonth[v].CA += ht;
-            g_CA += ht;
-
-            if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
-            tMonth[v].tickets[ticketId].items.push(article);
-
-            if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
-
-            // On compte dans nbAcc (Montres incluses pour booster le taux d'attache d'Emre)
-            if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1) { tMonth[v].nbAcc++; }
-
-            if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
-            if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
-            if (CODES.MIG.includes(codeArt)) { tMonth[v].MIG++; g_Counts.MIG++; }
-            if (CODES.MEV.includes(codeArt)) { tMonth[v].MEV++; g_Counts.MEV++; }
-            if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
-            if (CODES.MP.includes(codeArt)) { tMonth[v].MP++; g_Counts.MP++; }
-            if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
-
-            if (isToday) {
-                tDay[v].CA += ht;
-                if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
-                tDay[v].tickets[ticketId].items.push(article);
-                if (isTerm) { tDay[v].Terminaux++; if(isReco) tDay[v].Reco++; }
-                if (fam === "ACC" || fam === "PROT" || isWatch) tDay[v].nbAcc++;
-                if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
-            }
+    const processData = (data) => {
+        let currentTeamMap = {};
+        if (config?.team) {
+            config.team.trim().split('\n').forEach(line => { if (line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); } });
         }
-    });
+        setTeamMap(currentTeamMap);
+        const teamCodes = Object.keys(currentTeamMap);
+        let tMonth = {}, tDay = {};
+        teamCodes.forEach(code => {
+            const empty = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0, CA: 0, nbAcc: 0, tickets: {} };
+            tMonth[code] = JSON.parse(JSON.stringify(empty)); tDay[code] = JSON.parse(JSON.stringify(empty));
+        });
+
+        let g_CA = 0, g_Term = 0, g_Assur = 0, g_Counts = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0 };
+        const d = new Date();
+        const todayFormats = [`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, `${d.getDate()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`];
+
+        data.forEach(row => {
+            let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
+            let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
+            if (!rowDate) return;
+            let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
+            let isToday = todayFormats.some(f => rowDate.includes(f));
+            let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
+            let v = teamCodes.find(code => vRaw.includes(code));
+
+            if (v) {
+                let codeArt = parseInt(cleanRow["Code Article"]);
+                let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
+                let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
+                if (lib.startsWith("WP")) return;
+
+                const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
+                const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
+                const isPret = lib.includes("PRET");
+                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
+                const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
+
+                let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
+                && !KEY_NOT_TERM.some(k => lib.includes(k))
+                && !isWatch
+                && !lib.includes("COQUE")
+                && !lib.includes("ETUI")
+                && !lib.includes("PROTECTION")
+                && caVal > 10
+                && !isPret;
+
+                let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
+
+                let ht = 0;
+                if (isWatch) {
+                    ht = caVal / 1.2;
+                } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret && !isForfait) {
+                    ht = caVal / 1.2;
+                } else {
+                    ht = 0;
+                }
+
+                let fam = getFamily(lib, codeArt);
+                const article = { lib, fam, ca: caVal };
+
+                tMonth[v].CA += ht;
+                g_CA += ht;
+
+                if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
+                tMonth[v].tickets[ticketId].items.push(article);
+
+                if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
+                if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1) { tMonth[v].nbAcc++; }
+
+                if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
+                if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
+                if (CODES.MIG.includes(codeArt)) { tMonth[v].MIG++; g_Counts.MIG++; }
+                if (CODES.MEV.includes(codeArt)) { tMonth[v].MEV++; g_Counts.MEV++; }
+                if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
+                if (CODES.MP.includes(codeArt)) { tMonth[v].MP++; g_Counts.MP++; }
+                if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
+
+                if (isToday) {
+                    tDay[v].CA += ht;
+                    if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
+                    tDay[v].tickets[ticketId].items.push(article);
+                    if (isTerm) { tDay[v].Terminaux++; if(isReco) tDay[v].Reco++; }
+                    if (fam === "ACC" || fam === "PROT" || isWatch) tDay[v].nbAcc++;
+                    if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
+                }
+            }
+        });
 
         setGlobalData({ ca: g_CA, assur: g_Term > 0 ? Math.round((g_Assur / g_Term) * 100) : 0, counts: g_Counts });
         setStatsMonth(tMonth); setStatsDay(tDay);
@@ -303,32 +308,6 @@ export default function MobileDashboard({ config }) {
             )
         })}
         </div>
-
-        {/* --- SECTION LÉGENDE --- */}
-        <div className="section-label">📖 LÉGENDE DES INDICATEURS</div>
-        <div className="legend-container">
-        <div className="legend-group">
-        <h3>Volumes (Totaux)</h3>
-        <div className="legend-grid">
-        <div className="legend-item"><Smartphone size={14}/> <span>Terminaux (Neufs + Reco)</span></div>
-        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles (Ventes/Exclu)</span></div>
-        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox (Fibre/ADSL)</span></div>
-        <div className="legend-item"><Shield size={14} color="#666"/> <span>Nombre d'Assurances</span></div>
-        <div className="legend-item"><Zap size={14} color="#FFCC00"/> <span>MIG (Migrations vers Fibre)</span></div>
-        <div className="legend-item"><TrendingUp size={14} color="#856404"/> <span>MEV (Montées en Version)</span></div>
-        <div className="legend-item"><Home size={14} color="#32C832"/> <span>Maison Protégée</span></div>
-        </div>
-        </div>
-        <div className="legend-group">
-        <h3>Taux de performance (%)</h3>
-        <div className="legend-grid">
-        <div className="legend-item"><div className="pill-mini acc">ACC</div> <span>Nb Accessoires / Nb Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini reco"><Leaf size={10}/></div> <span>Taux de Reconditionné / Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini cyber"><Shield size={10}/></div> <span>Pénétration Cyber / (Box+Mig+Mev+Mob)</span></div>
-        <div className="legend-item">🛡️ <span>Taux d'Assurance / Terminaux</span></div>
-        </div>
-        </div>
-        </div>
         </div>
 
         {compareMode && (
@@ -433,8 +412,6 @@ export default function MobileDashboard({ config }) {
             .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; }
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
             .ticket-line span { color: #333; flex: 1; padding-right: 10px; }
-
-            /* STYLE LÉGENDE */
             .legend-container { background: white; margin: 0 15px 30px 15px; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
             .legend-group { margin-bottom: 15px; }
             .legend-group h3 { font-size: 12px; color: #FF7900; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #fff5eb; padding-bottom: 5px; }
@@ -445,7 +422,6 @@ export default function MobileDashboard({ config }) {
             .pill-mini.acc { background: #f0f4ff; color: #527EDB; }
             .pill-mini.reco { background: #e6f7ed; color: #10b981; }
             .pill-mini.cyber { background: #f5f0ff; color: #6f42c1; }
-
             .ro-main-stat { text-align: center; margin-bottom: 20px; }
             .ro-label { font-size: 14px; color: #666; }
             .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
