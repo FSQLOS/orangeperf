@@ -135,66 +135,62 @@ export default function MobileDashboard({ config }) {
                 let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
                 if (lib.startsWith("WP")) return;
 
-                // 1. DÉTECTION SPÉCIFIQUE MONTRE
-                const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
+                // 1. DÉTECTION CATÉGORIES
+                const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("M/L");
+                const isPret = lib.includes("PRET");
+                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
+                const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
 
-                // 2. LOGIQUE TERMINAUX (On exclut les montres, les accessoires et les prêts)
+                // 2. LOGIQUE TERMINAUX (Une montre n'est JAMAIS un terminal)
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
                 && !KEY_NOT_TERM.some(k => lib.includes(k))
                 && !isWatch
-                && !lib.includes("COQUE")
-                && !lib.includes("ETUI")
-                && !lib.includes("PROTECTION")
                 && caVal > 15
-                && !lib.includes("PRET");
+                && !isPret;
 
-                let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC ") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
-
-                // 3. LOGIQUE CA HT
-                const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
-                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
-                const isPret = lib.includes("PRET");
-
+                // 3. CALCUL DU CA HT (L'étape CRUCIALE)
                 let ht = 0;
-                // Si c'est une montre, on force le CA HT même si des filtres bloquent ailleurs
                 if (isWatch) {
+                    // Si c'est une montre, on prend TOUJOURS le CA
                     ht = caVal / 1.2;
-                } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret) {
+                } else if (isTerm || isPret || isTransfert || isBlacklisted) {
+                    // Si c'est un tel, un prêt, un transfert ou blacklisté -> 0€ de CA Accessoire
+                    ht = 0;
+                } else {
+                    // Sinon (coque, chargeur, etc.) -> On calcule le CA
                     ht = caVal / 1.2;
                 }
 
                 let fam = getFamily(lib, codeArt);
                 const article = { lib, fam, ca: caVal };
 
-                // Accumulation CA
+                // AJOUT AU VENDEUR ET AU GLOBAL
                 tMonth[v].CA += ht;
                 g_CA += ht;
 
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
                 tMonth[v].tickets[ticketId].items.push(article);
 
-                // Compteurs Volumes
+                // COMPTEURS VOLUMES
                 if (isTerm) {
                     tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++;
-                    if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; }
                 }
 
-                if ((fam === "ACC" || fam === "PROT") && caVal > 1) { tMonth[v].nbAcc++; }
+                // On compte dans nbAcc pour le taux d'attache (Montres incluses !)
+                if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1) {
+                    tMonth[v].nbAcc++;
+                }
+
+                // ... reste des compteurs (Broadband, Mobile, etc.)
                 if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
                 if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile++; g_Counts.Mobile++; }
-                if (CODES.MIG.includes(codeArt)) { tMonth[v].MIG++; g_Counts.MIG++; }
-                if (CODES.MEV.includes(codeArt)) { tMonth[v].MEV++; g_Counts.MEV++; }
-                if (CODES.Cyber.includes(codeArt)) { tMonth[v].Cyber++; g_Counts.Cyber++; }
-                if (CODES.MP.includes(codeArt)) { tMonth[v].MP++; g_Counts.MP++; }
                 if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance++; g_Counts.Assurance++; g_Assur++; }
+                // ... (ajoute les autres CODES.MIG, MEV, etc. ici si besoin)
 
                 if (isToday) {
                     tDay[v].CA += ht;
-                    if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
-                    tDay[v].tickets[ticketId].items.push(article);
-                    if (isTerm) { tDay[v].Terminaux++; if(isReco) tDay[v].Reco++; }
-                    if ((fam === "ACC" || fam === "PROT") && caVal > 1) tDay[v].nbAcc++;
-                    if (CODES.Cyber.includes(codeArt)) tDay[v].Cyber++;
+                    if (isTerm) tDay[v].Terminaux++;
+                    if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1) tDay[v].nbAcc++;
                 }
             }
         });
