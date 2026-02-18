@@ -5,44 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MANAGER HUB PRO</title>
 
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/f/ff/Orange_logo.svg">
-    <meta name="theme-color" content="#FF7900">
-
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <style>
-        body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 160px; }
+        body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 180px; }
         .orange { color: #FF7900; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 
-        /* Barre de filtres par collaborateur */
         .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 10px; scrollbar-width: none; }
         .filter-bar::-webkit-scrollbar { display: none; }
-        .filter-chip { background: #2A2A2A; padding: 8px 16px; border-radius: 20px; font-size: 13px; white-space: nowrap; border: 1px solid #444; cursor: pointer; transition: 0.2s; }
+        .filter-chip { background: #2A2A2A; padding: 8px 16px; border-radius: 20px; font-size: 13px; white-space: nowrap; border: 1px solid #444; cursor: pointer; }
         .filter-chip.active { background: #FF7900; border-color: #FF7900; color: white; font-weight: bold; }
 
-        .card { background: #1E1E1E; border-radius: 22px; padding: 15px; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .card { background: #1E1E1E; border-radius: 22px; padding: 15px; border: 1px solid #333; }
         .task-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #2A2A2A; }
-        .task-item:last-child { border-bottom: none; }
 
-        .checkbox { width: 28px; height: 28px; border: 2px solid #FF7900; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .check-inner { width: 16px; height: 16px; background: #FF7900; border-radius: 3px; }
+        /* Priorités */
+        .priority-P1 { border-left: 4px solid #ff4444; padding-left: 10px; }
+        .priority-P2 { border-left: 4px solid #FF7900; padding-left: 10px; }
+        .priority-P3 { border-left: 4px solid #444; padding-left: 10px; }
 
-        .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #1E1E1E; padding: 15px; border-top: 1px solid #333; z-index: 100; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
+        .checkbox { width: 28px; height: 28px; border: 2px solid #FF7900; border-radius: 9px; flex-shrink: 0; cursor: pointer; }
+        .checkbox.done { background: #FF7900; display: flex; align-items: center; justify-content: center; }
+
+        .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #1E1E1E; padding: 15px; border-top: 1px solid #333; z-index: 100; }
         .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 12px; border-radius: 12px; outline: none; font-size: 16px; width: 100%; -webkit-appearance: none; }
+        input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 12px; border-radius: 12px; font-size: 14px; width: 100%; }
 
-        button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; active { opacity: 0.8; } }
+        button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; }
+        button.archive-btn { background: #333; color: #999; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; }
 
-        .badge { font-size: 10px; background: #333; padding: 4px 8px; border-radius: 6px; color: #FF7900; margin-top: 5px; display: inline-block; border: 1px solid #444; margin-right: 5px; }
-        .timer-select { font-size: 12px; background: #121212; color: #FF7900; border: 1px solid #FF7900; border-radius: 7px; padding: 5px; width: auto; }
-        .user-tag { font-size: 10px; color: #666; cursor: pointer; text-decoration: underline; }
+        .badge { font-size: 10px; background: #333; padding: 4px 8px; border-radius: 6px; color: #FF7900; margin-top: 5px; display: inline-block; margin-right: 5px; }
     </style>
 </head>
 <body>
@@ -52,36 +48,37 @@
         const { useState, useEffect } = React;
         const supabaseClient = window.supabase.createClient('https://phqdtypbrwxngqdjgoud.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocWR0eXBicnd4bmdxZGpnb3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNDQwMzgsImV4cCI6MjA4NjgyMDAzOH0.P69E3eB36Mcur7lmg-EWxwwwI6lKLbcDCnKXDrHDEHY');
 
-        const PUSHOVER_GROUP_KEY = "gd3eebz7m51nws4efob68zcbge5xzz";
-        const PUSHOVER_API_TOKEN = "amxg1ri2x75nxx91airuhmaxs1gdo3";
-
         const STAFF = ["Steeve", "Mathieu", "Yannis", "Amaury", "Elliot", "Irvan", "Emrecan", "Ludovyk", "Johan", "Lucas", "Nico", "Jean-Max"];
 
         function App() {
             const [tasks, setTasks] = useState([]);
             const [text, setText] = useState('');
             const [date, setDate] = useState('');
+            const [priority, setPriority] = useState('P3');
             const [filter, setFilter] = useState('TOUS');
+            const [showHistory, setShowHistory] = useState(false);
             const [currentUser, setCurrentUser] = useState(localStorage.getItem('manager_name') || '');
 
             useEffect(() => {
                 if (!currentUser) {
                     const name = prompt("Qui utilise l'application ?");
-                    if (name) {
-                        localStorage.setItem('manager_name', name);
-                        setCurrentUser(name);
-                    }
+                    if (name) { localStorage.setItem('manager_name', name); setCurrentUser(name); }
                 }
                 fetchTasks();
                 const ch = supabaseClient.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>fetchTasks()).subscribe();
                 return () => supabaseClient.removeChannel(ch);
-            }, [currentUser]);
+            }, [currentUser, showHistory]);
 
             async function fetchTasks() {
-                const { data } = await supabaseClient.from('tasks').select('*').is('is_done', false);
+                let query = supabaseClient.from('tasks').select('*');
+                // Filtre selon si on veut l'historique ou les tâches en cours
+                query = query.eq('is_done', showHistory);
+
+                const { data } = await query;
                 if (data) {
-                    // Tri Chronologique : Dates les plus proches en haut, tâches sans date en bas
                     const sorted = data.sort((a, b) => {
+                        // Tri par priorité (P1 en haut) puis par date
+                        if (a.priority !== b.priority) return a.priority.localeCompare(b.priority);
                         if (!a.due_date) return 1;
                         if (!b.due_date) return -1;
                         return new Date(a.due_date) - new Date(b.due_date);
@@ -90,55 +87,41 @@
                 }
             }
 
-            async function addTask(title = null, staffName = null) {
-                const finalTitle = title || text;
-                if (!finalTitle.trim()) return;
-
+            async function addTask(assignedTo = null) {
+                if (!text.trim()) return;
                 const payload = {
-                    text: staffName ? `${finalTitle} (${staffName})` : finalTitle,
+                    text: text,
                     is_done: false,
-                    assigned_to: staffName || null
+                    assigned_to: assignedTo || null,
+                    due_date: date || null,
+                    priority: priority,
+                    created_by: currentUser
                 };
-                if (date) payload.due_date = date;
-
-                const { error } = await supabaseClient.from('tasks').insert([payload]);
-                if (error) alert("Erreur : " + error.message);
-                setText(''); setDate('');
+                await supabaseClient.from('tasks').insert([payload]);
+                setText(''); setDate(''); setPriority('P3');
             }
 
             async function toggleTask(task) {
-                const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
                 const { error } = await supabaseClient.from('tasks').update({
-                    is_done: true,
+                    is_done: !task.is_done,
                     last_updated_by: currentUser,
-                    completed_at: now
+                    completed_at: task.is_done ? null : new Date().toISOString()
                 }).eq('id', task.id);
-
-                if (!error) {
-                    const formData = new FormData();
-                    formData.append("token", PUSHOVER_API_TOKEN);
-                    formData.append("user", PUSHOVER_GROUP_KEY);
-                    formData.append("title", "Checklist validée ✅");
-                    formData.append("message", `${currentUser} a fini : ${task.text}`);
-                    formData.append("sound", "cashregister");
-                    fetch("https://api.pushover.net/1/messages.json", { method: "POST", body: formData });
-                }
             }
 
-            async function updateTimer(id, val) {
-                await supabaseClient.from('tasks').update({ timer_plan: val }).eq('id', id);
-            }
-
-            // Filtrage intelligent : par colonne assigned_to ou par mention du nom dans le texte
             const filteredTasks = filter === 'TOUS'
                 ? tasks
-                : tasks.filter(t => (t.assigned_to === filter) || (t.text.toLowerCase().includes(filter.toLowerCase())));
+                : tasks.filter(t => t.assigned_to === filter || t.text.includes(filter));
 
             return (
                 <div className="container">
                     <div className="header">
-                        <h2 style={{margin:0, fontSize:20}}>LUNDI <span className="orange">ADMIN</span></h2>
-                        <span className="user-tag" onClick={() => { localStorage.clear(); location.reload(); }}>👤 {currentUser}</span>
+                        <h2 style={{margin:0, fontSize:18}}>
+                            {showHistory ? "HISTORIQUE" : "MISSIONS"} <span className="orange">HUB</span>
+                        </h2>
+                        <button className="archive-btn" onClick={() => setShowHistory(!showHistory)}>
+                            {showHistory ? "⬅ Voir en cours" : "📁 Historique"}
+                        </button>
                     </div>
 
                     <div className="filter-bar">
@@ -150,49 +133,47 @@
 
                     <div className="card">
                         {filteredTasks.length === 0 ? (
-                            <div style={{textAlign:'center', color:'#666', padding:30, fontSize:14}}>Aucune mission en cours pour {filter === 'TOUS' ? 'l\'équipe' : filter}.</div>
+                            <div style={{textAlign:'center', color:'#666', padding:20}}>Vide.</div>
                         ) : (
                             filteredTasks.map(t => (
-                                <div key={t.id} className="task-item">
-                                    <div className="checkbox" onClick={() => toggleTask(t)}></div>
-                                    <div style={{flex:1}} onClick={() => toggleTask(t)}>
-                                        <div style={{fontSize:16, fontWeight:'500'}}>{t.text}</div>
+                                <div key={t.id} className={`task-item priority-${t.priority || 'P3'}`}>
+                                    <div className={`checkbox ${t.is_done ? 'done' : ''}`} onClick={() => toggleTask(t)}>
+                                        {t.is_done && "✓"}
+                                    </div>
+                                    <div style={{flex:1}}>
+                                        <div style={{fontSize:15, textDecoration: t.is_done ? 'line-through' : 'none', color: t.is_done ? '#666' : 'white'}}>
+                                            {t.text}
+                                        </div>
                                         <div style={{display:'flex', flexWrap:'wrap'}}>
-                                            {t.due_date && <span className="badge">📅 {new Date(t.due_date).toLocaleDateString('fr-FR')}</span>}
-                                            {t.timer_plan && <span className="badge">⏱️ {t.timer_plan}</span>}
-                                            {t.assigned_to && filter === 'TOUS' && <span className="badge" style={{color:'#999'}}>👤 {t.assigned_to}</span>}
+                                            {t.due_date && <span className="badge">📅 {new Date(t.due_date).toLocaleDateString()}</span>}
+                                            {t.assigned_to && <span className="badge" style={{background:'#2A2A2A'}}>👤 {t.assigned_to}</span>}
                                         </div>
                                     </div>
-                                    <select
-                                        className="timer-select"
-                                        value={t.timer_plan || ""}
-                                        onClick={(e) => e.stopPropagation()}
-                                        onChange={(e) => updateTimer(t.id, e.target.value)}
-                                    >
-                                        <option value="">⏱️</option>
-                                        <option value="15 min">15m</option>
-                                        <option value="30 min">30m</option>
-                                        <option value="45 min">45m</option>
-                                        <option value="1h00">1h</option>
-                                    </select>
                                 </div>
                             ))
                         )}
                     </div>
 
-                    <div className="footer-form">
-                        <div className="input-row">
-                            <input type="text" placeholder="Mission ou projet..." value={text} onChange={e => setText(e.target.value)} />
-                            <input style={{width:'150px'}} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                    {!showHistory && (
+                        <div className="footer-form">
+                            <div className="input-row">
+                                <input type="text" placeholder="Nouvelle mission..." value={text} onChange={e => setText(e.target.value)} />
+                                <select style={{width:'100px'}} value={priority} onChange={e => setPriority(e.target.value)}>
+                                    <option value="P1">🔴 Urgent</option>
+                                    <option value="P2">🟠 Important</option>
+                                    <option value="P3">⚪ Normal</option>
+                                </select>
+                            </div>
+                            <div className="input-row">
+                                <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+                                <select onChange={(e) => { if(e.target.value) { addTask(e.target.value); e.target.value = ""; } }}>
+                                    <option value="">👤 Assigner à...</option>
+                                    {STAFF.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <button className="add-btn" onClick={() => addTask()} style={{width:'80px'}}>OK</button>
+                            </div>
                         </div>
-                        <div className="input-row">
-                            <select onChange={(e) => { if(e.target.value) addTask("Entretien", e.target.value); e.target.value = ""; }}>
-                                <option value="">👤 Assigner / Entretien...</option>
-                                {STAFF.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <button className="add-btn" onClick={() => addTask()}>AJOUTER</button>
-                        </div>
-                    </div>
+                    )}
                 </div>
             );
         }
