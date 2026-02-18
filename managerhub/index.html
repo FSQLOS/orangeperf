@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MANAGER HUB PRO</title>
 
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/f/ff/Orange_logo.svg">
+    <meta name="theme-color" content="#FF7900">
+
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -13,32 +19,37 @@
     <style>
         body { background: #121212; color: white; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; padding-bottom: 180px; }
         .orange { color: #FF7900; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 
+        /* Filtres */
         .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 10px; scrollbar-width: none; }
         .filter-bar::-webkit-scrollbar { display: none; }
-        .filter-chip { background: #2A2A2A; padding: 8px 16px; border-radius: 20px; font-size: 13px; white-space: nowrap; border: 1px solid #444; cursor: pointer; }
+        .filter-chip { background: #2A2A2A; padding: 8px 16px; border-radius: 20px; font-size: 13px; white-space: nowrap; border: 1px solid #444; cursor: pointer; transition: 0.2s; }
         .filter-chip.active { background: #FF7900; border-color: #FF7900; color: white; font-weight: bold; }
 
-        .card { background: #1E1E1E; border-radius: 22px; padding: 15px; border: 1px solid #333; }
+        /* Liste des tâches */
+        .card { background: #1E1E1E; border-radius: 22px; padding: 15px; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .task-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #2A2A2A; }
+        .task-item:last-child { border-bottom: none; }
 
         /* Priorités */
-        .priority-P1 { border-left: 4px solid #ff4444; padding-left: 10px; }
-        .priority-P2 { border-left: 4px solid #FF7900; padding-left: 10px; }
-        .priority-P3 { border-left: 4px solid #444; padding-left: 10px; }
+        .priority-P1 { border-left: 4px solid #ff4444; padding-left: 12px; }
+        .priority-P2 { border-left: 4px solid #FF7900; padding-left: 12px; }
+        .priority-P3 { border-left: 4px solid #444; padding-left: 12px; }
 
-        .checkbox { width: 28px; height: 28px; border: 2px solid #FF7900; border-radius: 9px; flex-shrink: 0; cursor: pointer; }
-        .checkbox.done { background: #FF7900; display: flex; align-items: center; justify-content: center; }
+        .checkbox { width: 28px; height: 28px; border: 2px solid #FF7900; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .checkbox.done { background: #FF7900; color: white; font-weight: bold; }
 
-        .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #1E1E1E; padding: 15px; border-top: 1px solid #333; z-index: 100; }
+        /* Formulaire fixe */
+        .footer-form { position: fixed; bottom: 0; left: 0; right: 0; background: #1E1E1E; padding: 15px; border-top: 1px solid #333; z-index: 100; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
         .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 12px; border-radius: 12px; font-size: 14px; width: 100%; }
+        input, select { background: #2A2A2A; border: 1px solid #444; color: white; padding: 12px; border-radius: 12px; outline: none; font-size: 15px; width: 100%; -webkit-appearance: none; }
 
-        button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; }
-        button.archive-btn { background: #333; color: #999; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; }
+        button.add-btn { background: #FF7900; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        button.history-btn { background: #333; color: #999; border: 1px solid #444; padding: 6px 12px; border-radius: 10px; font-size: 12px; cursor: pointer; }
 
-        .badge { font-size: 10px; background: #333; padding: 4px 8px; border-radius: 6px; color: #FF7900; margin-top: 5px; display: inline-block; margin-right: 5px; }
+        .badge { font-size: 10px; background: #2A2A2A; padding: 4px 8px; border-radius: 6px; color: #FF7900; margin-top: 5px; display: inline-block; border: 1px solid #333; margin-right: 5px; }
+        .user-tag { font-size: 12px; color: #666; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -62,7 +73,10 @@
             useEffect(() => {
                 if (!currentUser) {
                     const name = prompt("Qui utilise l'application ?");
-                    if (name) { localStorage.setItem('manager_name', name); setCurrentUser(name); }
+                    if (name) {
+                        localStorage.setItem('manager_name', name);
+                        setCurrentUser(name);
+                    }
                 }
                 fetchTasks();
                 const ch = supabaseClient.channel('db').on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>fetchTasks()).subscribe();
@@ -70,15 +84,13 @@
             }, [currentUser, showHistory]);
 
             async function fetchTasks() {
-                let query = supabaseClient.from('tasks').select('*');
-                // Filtre selon si on veut l'historique ou les tâches en cours
-                query = query.eq('is_done', showHistory);
-
-                const { data } = await query;
+                // On récupère soit les tâches en cours (is_done: false), soit l'historique (is_done: true)
+                const { data } = await supabaseClient.from('tasks').select('*').eq('is_done', showHistory);
                 if (data) {
                     const sorted = data.sort((a, b) => {
-                        // Tri par priorité (P1 en haut) puis par date
+                        // Tri par priorité P1 > P2 > P3
                         if (a.priority !== b.priority) return a.priority.localeCompare(b.priority);
+                        // Puis par date
                         if (!a.due_date) return 1;
                         if (!b.due_date) return -1;
                         return new Date(a.due_date) - new Date(b.due_date);
@@ -87,41 +99,53 @@
                 }
             }
 
-            async function addTask(assignedTo = null) {
+            async function handleAddTask(staffName = null) {
                 if (!text.trim()) return;
+
                 const payload = {
                     text: text,
                     is_done: false,
-                    assigned_to: assignedTo || null,
-                    due_date: date || null,
+                    assigned_to: staffName || null,
                     priority: priority,
+                    due_date: date || null,
                     created_by: currentUser
                 };
-                await supabaseClient.from('tasks').insert([payload]);
-                setText(''); setDate(''); setPriority('P3');
+
+                const { error } = await supabaseClient.from('tasks').insert([payload]);
+                if (!error) {
+                    setText('');
+                    setDate('');
+                    setPriority('P3');
+                } else {
+                    alert("Erreur lors de l'ajout");
+                }
             }
 
             async function toggleTask(task) {
+                const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
                 const { error } = await supabaseClient.from('tasks').update({
                     is_done: !task.is_done,
                     last_updated_by: currentUser,
-                    completed_at: task.is_done ? null : new Date().toISOString()
+                    completed_at: task.is_done ? null : now
                 }).eq('id', task.id);
             }
 
             const filteredTasks = filter === 'TOUS'
                 ? tasks
-                : tasks.filter(t => t.assigned_to === filter || t.text.includes(filter));
+                : tasks.filter(t => (t.assigned_to === filter) || (t.text.toLowerCase().includes(filter.toLowerCase())));
 
             return (
                 <div className="container">
                     <div className="header">
-                        <h2 style={{margin:0, fontSize:18}}>
-                            {showHistory ? "HISTORIQUE" : "MISSIONS"} <span className="orange">HUB</span>
+                        <h2 style={{margin:0, fontSize:20}}>
+                            {showHistory ? "HISTORIQUE" : "LUNDI"} <span className="orange">{showHistory ? "ARCHIVES" : "ADMIN"}</span>
                         </h2>
-                        <button className="archive-btn" onClick={() => setShowHistory(!showHistory)}>
-                            {showHistory ? "⬅ Voir en cours" : "📁 Historique"}
-                        </button>
+                        <div style={{display:'flex', alignItems:'center', gap:10}}>
+                             <button className="history-btn" onClick={() => setShowHistory(!showHistory)}>
+                                {showHistory ? "⬅ En cours" : "📁 Archives"}
+                            </button>
+                            <span className="user-tag" onClick={() => { localStorage.clear(); location.reload(); }}>👤</span>
+                        </div>
                     </div>
 
                     <div className="filter-bar">
@@ -133,20 +157,28 @@
 
                     <div className="card">
                         {filteredTasks.length === 0 ? (
-                            <div style={{textAlign:'center', color:'#666', padding:20}}>Vide.</div>
+                            <div style={{textAlign:'center', color:'#666', padding:30, fontSize:14}}>
+                                {showHistory ? "Aucun historique." : "Aucune mission en cours."}
+                            </div>
                         ) : (
                             filteredTasks.map(t => (
                                 <div key={t.id} className={`task-item priority-${t.priority || 'P3'}`}>
                                     <div className={`checkbox ${t.is_done ? 'done' : ''}`} onClick={() => toggleTask(t)}>
                                         {t.is_done && "✓"}
                                     </div>
-                                    <div style={{flex:1}}>
-                                        <div style={{fontSize:15, textDecoration: t.is_done ? 'line-through' : 'none', color: t.is_done ? '#666' : 'white'}}>
+                                    <div style={{flex:1}} onClick={() => toggleTask(t)}>
+                                        <div style={{
+                                            fontSize:16,
+                                            fontWeight:'500',
+                                            textDecoration: t.is_done ? 'line-through' : 'none',
+                                            color: t.is_done ? '#666' : 'white'
+                                        }}>
                                             {t.text}
                                         </div>
                                         <div style={{display:'flex', flexWrap:'wrap'}}>
-                                            {t.due_date && <span className="badge">📅 {new Date(t.due_date).toLocaleDateString()}</span>}
-                                            {t.assigned_to && <span className="badge" style={{background:'#2A2A2A'}}>👤 {t.assigned_to}</span>}
+                                            {t.due_date && <span className="badge">📅 {new Date(t.due_date).toLocaleDateString('fr-FR')}</span>}
+                                            {t.assigned_to && <span className="badge" style={{color:'#999'}}>👤 {t.assigned_to}</span>}
+                                            {t.is_done && t.completed_at && <span className="badge" style={{color:'#4caf50'}}>Fait à {t.completed_at}</span>}
                                         </div>
                                     </div>
                                 </div>
@@ -157,20 +189,25 @@
                     {!showHistory && (
                         <div className="footer-form">
                             <div className="input-row">
-                                <input type="text" placeholder="Nouvelle mission..." value={text} onChange={e => setText(e.target.value)} />
-                                <select style={{width:'100px'}} value={priority} onChange={e => setPriority(e.target.value)}>
+                                <input
+                                    type="text"
+                                    placeholder="Mission ou projet..."
+                                    value={text}
+                                    onChange={e => setText(e.target.value)}
+                                />
+                                <select style={{width:'110px'}} value={priority} onChange={e => setPriority(e.target.value)}>
                                     <option value="P1">🔴 Urgent</option>
                                     <option value="P2">🟠 Important</option>
                                     <option value="P3">⚪ Normal</option>
                                 </select>
                             </div>
                             <div className="input-row">
-                                <input type="date" value={date} onChange={e => setDate(e.target.value)} />
-                                <select onChange={(e) => { if(e.target.value) { addTask(e.target.value); e.target.value = ""; } }}>
+                                <input style={{width:'140px'}} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                                <select onChange={(e) => { if(e.target.value) handleAddTask(e.target.value); e.target.value = ""; }}>
                                     <option value="">👤 Assigner à...</option>
                                     {STAFF.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <button className="add-btn" onClick={() => addTask()} style={{width:'80px'}}>OK</button>
+                                <button className="add-btn" style={{width:'70px'}} onClick={() => handleAddTask()}>OK</button>
                             </div>
                         </div>
                     )}
