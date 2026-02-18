@@ -136,37 +136,52 @@ export default function MobileDashboard({ config }) {
                 let codeArt = parseInt(cleanRow["Code Article"]);
                 let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
                 let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
+
                 if (lib.startsWith("WP")) return;
 
+                // 1. DÉTECTION DES REMBOURSEMENTS
+                const isRefund = caVal < 0;
+                // On utilise la valeur absolue pour les tests de prix (ex: -500€ devient 500€ pour le test)
+                const absVal = Math.abs(caVal);
+
+                // 2. DÉFINITION DES CATÉGORIES
                 const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
-                const isParafoudre = lib.includes("PARAFOUDRE") || lib.includes("MULTIPRISE") || lib.includes("GIGASET") || lib.includes("ALCATEL");
                 const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
                 const isPret = lib.includes("PRET");
                 const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
-                const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(caVal);
+                const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(absVal);
 
+                // 3. LOGIQUE TERMINAUX (On utilise absVal pour que les remboursements de tel soient reconnus)
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
                 && !KEY_NOT_TERM.some(k => lib.includes(k))
                 && !isWatch
                 && !lib.includes("COQUE")
                 && !lib.includes("ETUI")
                 && !lib.includes("PROTECTION")
-                && caVal > 10
+                && absVal > 15 // On utilise absVal ici
                 && !isPret;
 
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
 
+                // 4. CALCUL DU CA HT (On ignore les remboursements si tu veux un CA "Ventes Brutes")
                 let ht = 0;
-                if (isWatch) {
-                    ht = caVal / 1.2;
-                } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret && !isForfait && !isParafoudre) {
-                    ht = caVal / 1.2;
-                } else {
+
+                if (isRefund) {
+                    // Option A : Tu veux que les remboursements ne comptent pas du tout
                     ht = 0;
+                } else {
+                    if (isWatch) {
+                        ht = caVal / 1.2;
+                    } else if (!isTerm && !isBlacklisted && !isTransfert && !isPret && !isForfait) {
+                        ht = caVal / 1.2;
+                    }
                 }
 
                 let fam = getFamily(lib, codeArt);
                 const article = { lib, fam, ca: caVal };
+
+                // 5. MISE À JOUR DES COMPTEURS (On décrémente si c'est un remboursement)
+                const modifier = isRefund ? -1 : 1;
 
                 tMonth[v].CA += ht;
                 g_CA += ht;
@@ -174,10 +189,16 @@ export default function MobileDashboard({ config }) {
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
                 tMonth[v].tickets[ticketId].items.push(article);
 
-                if (isTerm) { tMonth[v].Terminaux++; g_Counts.Terminaux++; g_Term++; if(isReco){ tMonth[v].Reco++; g_Counts.Reco++; } }
+                if (isTerm) {
+                    tMonth[v].Terminaux += modifier;
+                    g_Counts.Terminaux += modifier;
+                    g_Term += modifier;
+                    if(isReco){ tMonth[v].Reco += modifier; g_Counts.Reco += modifier; }
+                }
 
-                if ((fam === "ACC" || fam === "PROT" || isWatch) && caVal > 1 && !isParafoudre) {
-                    tMonth[v].nbAcc++;
+                // Pour les accessoires, on ne décrémente que si tu veux le taux d'attache "Net"
+                if ((fam === "ACC" || fam === "PROT" || isWatch) && absVal > 1) {
+                    tMonth[v].nbAcc += modifier;
                 }
 
                 if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband++; g_Counts.Broadband++; }
