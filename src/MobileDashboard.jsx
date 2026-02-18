@@ -58,7 +58,7 @@ export default function MobileDashboard({ config }) {
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
     const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "REDMI NOTE", "CROSSCALL STELLAR"];
     const KEY_NOT_TERM = ["DBRAMENTE", "DBRAMANTE", "KIT PIETON", "FOLIO", "COQUE", "VT", "QDOS", "PROTECTION", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE", "TW"];
-    const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MONO", "SAV", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
+    const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MONO", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
     const getMonthInfo = () => {
@@ -109,16 +109,12 @@ export default function MobileDashboard({ config }) {
     const processData = (data) => {
         let currentTeamMap = {};
         if (config?.team) {
-            config.team.trim().split('\n').forEach(line => {
-                if (line.includes(':')) {
-                    const [c, n] = line.split(':');
-                    currentTeamMap[c.trim()] = n.trim();
-                }
-            });
+            config.team.trim().split('\n').forEach(line => { if (line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); } });
         }
         setTeamMap(currentTeamMap);
         const teamCodes = Object.keys(currentTeamMap);
         let tMonth = {}, tDay = {};
+
         teamCodes.forEach(code => {
             const empty = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0, CA: 0, nbAcc: 0, tickets: {} };
             tMonth[code] = JSON.parse(JSON.stringify(empty));
@@ -133,7 +129,6 @@ export default function MobileDashboard({ config }) {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
             let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
             if (!rowDate) return;
-
             let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
             let isToday = todayFormats.some(f => rowDate.includes(f));
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
@@ -143,78 +138,79 @@ export default function MobileDashboard({ config }) {
                 let codeArt = parseInt(cleanRow["Code Article"]);
                 let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
                 let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
-
                 if (lib.startsWith("WP")) return;
 
-                // --- 1. VARIABLES DE DÉTECTION ---
                 const isRefund = caVal < 0;
                 const absVal = Math.abs(caVal);
+                const modifier = isRefund ? -1 : 1;
+
                 const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
                 const isParafoudre = lib.includes("PARAFOUDRE") || lib.includes("MULTIPRISE");
-                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT");
+                const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
                 const isPret = lib.includes("PRET");
+                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
 
-                // On sépare la blacklist libellé de la blacklist prix
                 const isLabelBlacklisted = BLACKLIST_CA.some(w => lib.includes(w));
                 const isPriceExcluded = EXCLUDED_PRICES.includes(absVal);
 
-                // --- 2. DÉTERMINATION DE LA FAMILLE ---
                 let fam = getFamily(lib, codeArt);
 
-                // --- 3. LOGIQUE TERMINAUX ---
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
-                && !KEY_NOT_TERM.some(k => lib.includes(k))
-                && !isWatch && !lib.includes("COQUE") && !lib.includes("ETUI") && !lib.includes("PROTECTION")
-                && absVal > 15 && !isPret;
+                && !KEY_NOT_TERM.some(k => lib.includes(k)) && !isWatch && !lib.includes("COQUE") && !lib.includes("ETUI")
+                && !lib.includes("PROTECTION") && absVal > 15 && !isPret;
 
-                let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC") || lib.includes("RENEWD"));
+                let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
 
-                // --- 4. CALCUL DU CA HT (L'argent) ---
+                // CALCUL CA HT STRICT (Règle de Yannis & Jean-Max)
                 let ht = 0;
                 if (!isRefund) {
                     if (isWatch) {
                         ht = caVal / 1.2;
-                    }
-                    // Pour ACC et PROT, on ignore "isPriceExcluded" (pour que le 39€ de Yannis passe)
-                    else if ((fam === "ACC" || fam === "PROT") && !isLabelBlacklisted && !isTransfert && !isParafoudre && !isTerm) {
+                    } else if ((fam === "ACC" || fam === "PROT") && !isLabelBlacklisted && !isTransfert && !isParafoudre && !isTerm) {
+                        // On ignore isPriceExcluded ici pour que les coques à 39€ comptent
                         ht = caVal / 1.2;
                     }
                 }
 
-                // Pour l'affichage dans le ticket : on garde caVal si c'est du CA ou si c'est un prix exclu (info)
-                const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0 };
-                const modifier = isRefund ? -1 : 1;
-
-                // Mise à jour des stats globales et vendeur
+                // MISE À JOUR MOIS & GLOBAL
                 tMonth[v].CA += ht;
                 g_CA += ht;
-
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
+
+                // Pour l'affichage ticket : on montre le prix si c'est du CA ou si c'est un prix exclu connu
+                const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0 };
                 tMonth[v].tickets[ticketId].items.push(article);
 
-                // --- 5. COMPTEURS VOLUMES ---
-                if (isTerm) {
-                    tMonth[v].Terminaux += modifier;
-                    g_Counts.Terminaux += modifier;
-                    g_Term += modifier;
-                    if(isReco){ tMonth[v].Reco += modifier; g_Counts.Reco += modifier; }
-                }
+                // FONCTION HELPER POUR INCRÉMENTER (Mois + Jour + Global)
+                const updateStat = (key, val = modifier) => {
+                    tMonth[v][key] += val;
+                    g_Counts[key] += val;
+                    if (isToday) tDay[v][key] += val;
+                };
 
-                if ((fam === "ACC" || fam === "PROT" || isWatch) && absVal > 1 && !isParafoudre) {
-                    tMonth[v].nbAcc += modifier;
-                }
+                    if (isTerm) {
+                        updateStat('Terminaux');
+                        g_Term += modifier;
+                        if (isReco) updateStat('Reco');
+                    }
 
-                if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband += modifier; g_Counts.Broadband += modifier; }
-                if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile += modifier; g_Counts.Mobile += modifier; }
-                if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance += modifier; g_Counts.Assurance += modifier; g_Assur += modifier; }
+                    if ((fam === "ACC" || fam === "PROT" || isWatch) && absVal > 1 && !isParafoudre) {
+                        tMonth[v].nbAcc += modifier;
+                        if (isToday) tDay[v].nbAcc += modifier;
+                    }
 
-                if (isToday) {
-                    tDay[v].CA += ht;
-                    if (!tDay[v].tickets[ticketId]) tDay[v].tickets[ticketId] = { date: rowDate, items: [] };
-                    tDay[v].tickets[ticketId].items.push(article);
-                    if (isTerm) tDay[v].Terminaux += modifier;
-                    if ((fam === "ACC" || fam === "PROT" || isWatch) && absVal > 1 && !isParafoudre) tDay[v].nbAcc += modifier;
-                }
+                    if (CODES.Broadband.includes(codeArt)) updateStat('Broadband');
+                    if (CODES.Mobile.includes(codeArt)) updateStat('Mobile');
+                    if (CODES.MIG.includes(codeArt)) updateStat('MIG');
+                    if (CODES.MEV.includes(codeArt)) updateStat('MEV');
+                    if (CODES.Cyber.includes(codeArt)) updateStat('Cyber');
+                    if (CODES.MP.includes(codeArt)) updateStat('MP');
+                    if (CODES.Assurance.includes(codeArt)) {
+                        updateStat('Assurance');
+                        g_Assur += modifier;
+                    }
+
+                    if (isToday) tDay[v].CA += ht;
             }
         });
 
@@ -304,7 +300,7 @@ export default function MobileDashboard({ config }) {
 
         <div className="section-label">🏆 CLASSEMENT</div>
         <div className="team-list">
-        sortedTeamCodes.map((code, index) => {
+        {sortedTeamCodes.map((code, index) => {
             const s = currentStats[code];
             if (s.CA === 0 && s.Terminaux === 0) return null;
             const name = teamMap[code] || code;
