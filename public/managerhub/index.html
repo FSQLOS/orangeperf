@@ -19,6 +19,7 @@
             --border-light: rgba(255, 255, 255, 0.08);
             --text-secondary: #A0A0A0;
             --success-green: #4CAF50;
+            --danger-red: #ff4444;
         }
 
         body {
@@ -70,6 +71,21 @@
             justify-content: center; cursor: pointer; font-size: 14px;
         }
         .checkbox.done { background: var(--success-green); border-color: transparent; color: white; }
+
+        .delete-btn {
+            background: rgba(255, 68, 68, 0.1);
+            color: var(--danger-red);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 8px;
+        }
 
         .footer-form {
             position: fixed; bottom: 15px; left: 10px; right: 10px;
@@ -137,11 +153,8 @@
             }, [currentUser, showHistory]);
 
             async function fetchTasks() {
-                // Pour la vue active, on récupère TOUT (fait et non fait) pour gérer l'affichage de confirmation
                 const query = supabaseClient.from('tasks').select('*');
-                if (showHistory) {
-                    query.eq('is_done', true);
-                }
+                if (showHistory) query.eq('is_done', true);
                 const { data } = await query;
                 if (data) {
                     const sorted = data.sort((a, b) => {
@@ -151,6 +164,12 @@
                         return new Date(a.due_date) - new Date(b.due_date);
                     });
                     setTasks(sorted);
+                }
+            }
+
+            async function deleteTask(id) {
+                if (confirm("Forcer la suppression ? (Cela arrêtera la récurrence si c'en est une)")) {
+                    await supabaseClient.from('tasks').delete().eq('id', id);
                 }
             }
 
@@ -181,19 +200,13 @@
                     completed_at: isNowDone ? now : null
                 }).eq('id', task.id);
 
-                // Si on vient de valider une tâche récurrente
                 if (isNowDone && task.is_recurring) {
                     const next = new Date(task.due_date || new Date());
                     next.setDate(next.getDate() + 7);
-
                     await supabaseClient.from('tasks').insert([{
-                        text: task.text,
-                        is_done: false,
-                        assigned_to: task.assigned_to,
-                        priority: task.priority,
-                        due_date: next.toISOString().split('T')[0],
-                        created_by: "Système",
-                        is_recurring: true
+                        text: task.text, is_done: false, assigned_to: task.assigned_to,
+                        priority: task.priority, due_date: next.toISOString().split('T')[0],
+                        created_by: "Système", is_recurring: true
                     }]);
                 }
 
@@ -213,17 +226,11 @@
                 const tomorrow = tom.toISOString().split('T')[0];
 
                 if (showHistory) return base.filter(t => t.is_done);
-
-                // Filtrage principal
                 if (filter !== 'TOUS') {
                     base = base.filter(t => t.assigned_to?.includes(filter) || t.text.includes(filter));
                 } else {
-                    // Accueil : Aujourd'hui, Demain, sans date
                     base = base.filter(t => !t.due_date || t.due_date === today || t.due_date === tomorrow);
                 }
-
-                // Sur la page Missions, on cache les tâches terminées qui ne sont pas d'aujourd'hui
-                // pour ne pas polluer, mais on garde celles du jour pour la "confirmation"
                 return base.filter(t => !t.is_done || (t.is_done && (t.due_date === today || !t.due_date)));
             };
 
@@ -261,12 +268,7 @@
                                             {t.is_done ? "✓" : ""}
                                         </div>
                                         <div style={{flex:1}}>
-                                            <div style={{
-                                                fontSize:15,
-                                                fontWeight:'600',
-                                                textDecoration: t.is_done ? 'line-through' : 'none',
-                                                color: t.is_done ? 'var(--success-green)' : '#EEE'
-                                            }}>
+                                            <div style={{fontSize:15, fontWeight:'600', textDecoration: t.is_done ? 'line-through' : 'none', color: t.is_done ? 'var(--success-green)' : '#EEE'}}>
                                                 {t.text} {t.is_recurring && "🔄"}
                                                 {t.is_done && <span style={{fontSize:11, marginLeft:10, fontWeight:'normal'}}>— Terminé à {t.completed_at}</span>}
                                             </div>
@@ -275,6 +277,7 @@
                                                 {t.assigned_to && <span className="badge">👤 {t.assigned_to}</span>}
                                             </div>
                                         </div>
+                                        <button className="delete-btn" onClick={() => deleteTask(t.id)}>🗑️</button>
                                     </div>
                                 </React.Fragment>
                             );
