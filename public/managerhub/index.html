@@ -23,7 +23,6 @@
         .card { background: #1E1E1E; border-radius: 22px; padding: 15px; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .task-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #2A2A2A; }
 
-        /* Priorités visuelles */
         .priority-P1 { border-left: 4px solid #ff4444; padding-left: 12px; }
         .priority-P2 { border-left: 4px solid #FF7900; padding-left: 12px; }
         .priority-P3 { border-left: 4px solid #444; padding-left: 12px; }
@@ -75,10 +74,8 @@
             async function fetchTasks() {
                 const { data } = await supabaseClient.from('tasks').select('*').eq('is_done', showHistory);
                 if (data) {
+                    // ORDRE CHRONOLOGIQUE UNIQUEMENT
                     const sorted = data.sort((a, b) => {
-                        // Tri par priorité P1 > P2 > P3
-                        if (a.priority !== b.priority) return a.priority.localeCompare(b.priority);
-                        // Puis par date d'échéance
                         if (!a.due_date) return 1;
                         if (!b.due_date) return -1;
                         return new Date(a.due_date) - new Date(b.due_date);
