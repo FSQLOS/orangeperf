@@ -18,6 +18,7 @@
             --card-bg: rgba(26, 26, 26, 0.8);
             --border-light: rgba(255, 255, 255, 0.08);
             --text-secondary: #A0A0A0;
+            --success-green: #4CAF50;
         }
 
         body {
@@ -26,12 +27,12 @@
             font-family: 'Inter', -apple-system, sans-serif;
             margin: 0;
             padding: 15px;
-            padding-bottom: 260px; /* Plus d'espace pour le formulaire agrandi */
+            padding-bottom: 280px;
             letter-spacing: -0.01em;
         }
 
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 5px; }
-        .header h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+        .header h2 { font-size: 20px; font-weight: 800; margin: 0; }
 
         .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; }
         .filter-bar::-webkit-scrollbar { display: none; }
@@ -56,19 +57,20 @@
             border: 1px solid var(--border-light);
         }
 
-        .task-item { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 18px; margin-bottom: 4px; }
-        .priority-P1 { border-left: 5px solid #ff4444; }
-        .priority-P2 { border-left: 5px solid var(--orange-primary); }
-        .priority-P3 { border-left: 5px solid #333; }
+        .task-item { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 18px; margin-bottom: 4px; border-left: 5px solid transparent; transition: all 0.3s ease; }
+        .priority-P1 { border-left-color: #ff4444; }
+        .priority-P2 { border-left-color: var(--orange-primary); }
+        .priority-P3 { border-left-color: #333; }
+
+        .task-item.is-done-item { opacity: 0.7; background: rgba(76, 175, 80, 0.05); }
 
         .checkbox {
             width: 24px; height: 24px; border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 7px; flex-shrink: 0; display: flex; align-items: center;
-            justify-content: center; cursor: pointer;
+            justify-content: center; cursor: pointer; font-size: 14px;
         }
-        .checkbox.done { background: var(--orange-gradient); border-color: transparent; }
+        .checkbox.done { background: var(--success-green); border-color: transparent; color: white; }
 
-        /* Footer Formulaire Corrigé */
         .footer-form {
             position: fixed; bottom: 15px; left: 10px; right: 10px;
             background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(25px);
@@ -76,33 +78,30 @@
             z-index: 1000; box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
         }
 
-        .input-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+        .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
         input, select {
             background: rgba(255, 255, 255, 0.07); border: 1px solid var(--border-light);
-            color: white; padding: 12px; border-radius: 12px; outline: none; font-size: 14px; flex: 1;
-            min-width: 100px;
+            color: white; padding: 12px; border-radius: 12px; font-size: 14px; outline: none;
         }
 
-        /* Style spécifique pour l'assignation multiple */
         .multi-select-container {
-            display: flex; flex-wrap: wrap; gap: 4px; background: rgba(255,255,255,0.04);
-            padding: 8px; border-radius: 12px; border: 1px solid var(--border-light);
-            margin-bottom: 8px; max-height: 80px; overflow-y: auto;
+            display: flex; flex-wrap: wrap; gap: 6px; background: rgba(255,255,255,0.04);
+            padding: 10px; border-radius: 12px; border: 1px solid var(--border-light);
+            margin-bottom: 10px; max-height: 90px; overflow-y: auto;
         }
         .staff-tag {
-            font-size: 11px; padding: 4px 10px; border-radius: 6px; background: #333;
-            cursor: pointer; border: 1px solid transparent;
+            font-size: 11px; padding: 5px 10px; border-radius: 8px; background: #222;
+            cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
         }
-        .staff-tag.selected { background: var(--orange-primary); color: white; }
+        .staff-tag.selected { background: var(--orange-primary); color: white; border-color: transparent; }
 
         button.add-btn {
-            background: var(--orange-gradient); color: white; border: none; padding: 12px;
-            border-radius: 12px; font-weight: 700; cursor: pointer; width: 100%;
-            margin-top: 5px;
+            background: var(--orange-gradient); color: white; border: none; padding: 14px;
+            border-radius: 14px; font-weight: 700; cursor: pointer; width: 100%;
         }
 
-        .badge { font-size: 10px; background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 6px; color: var(--text-secondary); margin-top: 5px; display: inline-block; margin-right: 5px; border: 1px solid var(--border-light); }
-        .section-title { font-size: 11px; color: var(--orange-primary); font-weight: 800; padding: 8px 14px 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .badge { font-size: 10px; background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 6px; color: var(--text-secondary); margin-top: 5px; display: inline-block; border: 1px solid var(--border-light); margin-right: 5px; }
+        .section-title { font-size: 11px; color: var(--orange-primary); font-weight: 800; padding: 12px 14px 4px; text-transform: uppercase; letter-spacing: 0.05em; }
     </style>
 </head>
 <body>
@@ -122,7 +121,7 @@
             const [date, setDate] = useState('');
             const [priority, setPriority] = useState('P3');
             const [isRecurring, setIsRecurring] = useState(false);
-            const [selectedStaffs, setSelectedStaffs] = useState([]); // Array pour le multi-select
+            const [selectedStaffs, setSelectedStaffs] = useState([]);
             const [filter, setFilter] = useState('TOUS');
             const [showHistory, setShowHistory] = useState(false);
             const [currentUser, setCurrentUser] = useState(localStorage.getItem('manager_name') || '');
@@ -138,85 +137,94 @@
             }, [currentUser, showHistory]);
 
             async function fetchTasks() {
-                const { data } = await supabaseClient.from('tasks').select('*').eq('is_done', showHistory);
+                // Pour la vue active, on récupère TOUT (fait et non fait) pour gérer l'affichage de confirmation
+                const query = supabaseClient.from('tasks').select('*');
+                if (showHistory) {
+                    query.eq('is_done', true);
+                }
+                const { data } = await query;
                 if (data) {
                     const sorted = data.sort((a, b) => {
-                        if (!a.due_date) return 1;
-                        if (!b.due_date) return -1;
+                        if (!a.due_date && !b.due_date) return b.id - a.id;
+                        if (!a.due_date) return -1;
+                        if (!b.due_date) return 1;
                         return new Date(a.due_date) - new Date(b.due_date);
                     });
                     setTasks(sorted);
                 }
             }
 
-            const toggleStaff = (name) => {
-                setSelectedStaffs(prev =>
-                    prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]
-                );
-            };
-
             async function handleAddTask() {
-                const taskTitle = text.trim();
-                if (!taskTitle) return;
-
+                if (!text.trim()) return;
                 const payload = {
-                    text: taskTitle,
+                    text: text,
                     is_done: false,
-                    assigned_to: selectedStaffs.join(', ') || null, // On stocke les noms séparés par une virgule
+                    assigned_to: selectedStaffs.join(', ') || null,
                     priority: priority,
                     due_date: date || null,
                     created_by: currentUser,
                     is_recurring: isRecurring
                 };
-
                 const { error } = await supabaseClient.from('tasks').insert([payload]);
                 if (!error) {
-                    setText(''); setDate(''); setPriority('P3'); setSelectedStaffs([]); setIsRecurring(false);
-                } else {
-                    alert("Erreur d'ajout : " + error.message);
+                    setText(''); setDate(''); setSelectedStaffs([]); setIsRecurring(false);
                 }
             }
 
             async function toggleTask(task) {
                 const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-                const { error } = await supabaseClient.from('tasks').update({
-                    is_done: !task.is_done,
+                const isNowDone = !task.is_done;
+
+                await supabaseClient.from('tasks').update({
+                    is_done: isNowDone,
                     last_updated_by: currentUser,
-                    completed_at: task.is_done ? null : now
+                    completed_at: isNowDone ? now : null
                 }).eq('id', task.id);
 
-                if (!error && !task.is_done) {
-                    if (task.is_recurring) {
-                        const nextDate = new Date(task.due_date || new Date());
-                        nextDate.setDate(nextDate.getDate() + 7);
-                        await supabaseClient.from('tasks').insert([{
-                            text: task.text, is_done: false, assigned_to: task.assigned_to,
-                            priority: task.priority, due_date: nextDate.toISOString().split('T')[0],
-                            created_by: "Système", is_recurring: true
-                        }]);
-                    }
+                // Si on vient de valider une tâche récurrente
+                if (isNowDone && task.is_recurring) {
+                    const next = new Date(task.due_date || new Date());
+                    next.setDate(next.getDate() + 7);
+
+                    await supabaseClient.from('tasks').insert([{
+                        text: task.text,
+                        is_done: false,
+                        assigned_to: task.assigned_to,
+                        priority: task.priority,
+                        due_date: next.toISOString().split('T')[0],
+                        created_by: "Système",
+                        is_recurring: true
+                    }]);
+                }
+
+                if (isNowDone) {
                     const formData = new FormData();
                     formData.append("token", PUSHOVER_API_TOKEN);
                     formData.append("user", PUSHOVER_GROUP_KEY);
-                    formData.append("title", "Mission accomplie ✅");
-                    formData.append("message", `${currentUser} a fini : ${task.text}`);
-                    formData.append("sound", "cashregister");
-                    fetch("https://api.pushover.net/1/messages.json", { method: "POST", body: formData }).catch(e => console.error(e));
+                    formData.append("message", `${currentUser} a validé : ${task.text} ✅`);
+                    fetch("https://api.pushover.net/1/messages.json", { method: "POST", body: formData });
                 }
             }
 
             const getFilteredTasks = () => {
+                let base = tasks;
                 const today = new Date().toISOString().split('T')[0];
-                const tomDate = new Date(); tomDate.setDate(tomDate.getDate() + 1);
-                const tomorrow = tomDate.toISOString().split('T')[0];
+                const tom = new Date(); tom.setDate(tom.getDate() + 1);
+                const tomorrow = tom.toISOString().split('T')[0];
 
+                if (showHistory) return base.filter(t => t.is_done);
+
+                // Filtrage principal
                 if (filter !== 'TOUS') {
-                    return tasks.filter(t => t.assigned_to?.includes(filter) || t.text.toLowerCase().includes(filter.toLowerCase()));
+                    base = base.filter(t => t.assigned_to?.includes(filter) || t.text.includes(filter));
+                } else {
+                    // Accueil : Aujourd'hui, Demain, sans date
+                    base = base.filter(t => !t.due_date || t.due_date === today || t.due_date === tomorrow);
                 }
-                if (!showHistory) {
-                    return tasks.filter(t => !t.due_date || t.due_date === today || t.due_date === tomorrow);
-                }
-                return tasks;
+
+                // Sur la page Missions, on cache les tâches terminées qui ne sont pas d'aujourd'hui
+                // pour ne pas polluer, mais on garde celles du jour pour la "confirmation"
+                return base.filter(t => !t.is_done || (t.is_done && (t.due_date === today || !t.due_date)));
             };
 
             const filteredTasks = getFilteredTasks();
@@ -234,24 +242,34 @@
                     </div>
 
                     <div className="card">
-                        {filteredTasks.length === 0 ? <div style={{textAlign:'center', color:'#555', padding:30}}>Aucune mission.</div> :
-                        filteredTasks.map((t, index) => {
+                        {filteredTasks.length === 0 ? <div style={{textAlign:'center', color:'#444', padding:40}}>Aucune mission.</div> :
+                        filteredTasks.map((t, i) => {
                             const today = new Date().toISOString().split('T')[0];
-                            const tomDate = new Date(); tomDate.setDate(tomDate.getDate() + 1);
-                            const tomorrow = tomDate.toISOString().split('T')[0];
-                            let label = (index === 0 || tasks[index-1].due_date !== t.due_date) ? true : false;
+                            const tom = new Date(); tom.setDate(tom.getDate() + 1);
+                            const tomorrow = tom.toISOString().split('T')[0];
+                            const showSection = (i === 0 || filteredTasks[i-1].due_date !== t.due_date);
 
                             return (
                                 <React.Fragment key={t.id}>
-                                    {label && filter === 'TOUS' && !showHistory && (
+                                    {showSection && filter === 'TOUS' && !showHistory && (
                                         <div className="section-title">
-                                            {t.due_date === today ? "Aujourd'hui" : t.due_date === tomorrow ? "Demain" : "Missions de fond"}
+                                            {!t.due_date ? "Missions prioritaires / Fond" : t.due_date === today ? "Aujourd'hui" : t.due_date === tomorrow ? "Demain" : "À venir"}
                                         </div>
                                     )}
-                                    <div className={`task-item priority-${t.priority || 'P3'}`}>
-                                        <div className={`checkbox ${t.is_done ? 'done' : ''}`} onClick={() => toggleTask(t)}>{t.is_done && "✓"}</div>
+                                    <div className={`task-item priority-${t.priority || 'P3'} ${t.is_done ? 'is-done-item' : ''}`}>
+                                        <div className={`checkbox ${t.is_done ? 'done' : ''}`} onClick={() => toggleTask(t)}>
+                                            {t.is_done ? "✓" : ""}
+                                        </div>
                                         <div style={{flex:1}}>
-                                            <div style={{fontSize:15, fontWeight:'600', color: t.is_done ? '#555' : '#EEE'}}>{t.text} {t.is_recurring && "🔄"}</div>
+                                            <div style={{
+                                                fontSize:15,
+                                                fontWeight:'600',
+                                                textDecoration: t.is_done ? 'line-through' : 'none',
+                                                color: t.is_done ? 'var(--success-green)' : '#EEE'
+                                            }}>
+                                                {t.text} {t.is_recurring && "🔄"}
+                                                {t.is_done && <span style={{fontSize:11, marginLeft:10, fontWeight:'normal'}}>— Terminé à {t.completed_at}</span>}
+                                            </div>
                                             <div>
                                                 {t.due_date && <span className="badge">📅 {new Date(t.due_date).toLocaleDateString()}</span>}
                                                 {t.assigned_to && <span className="badge">👤 {t.assigned_to}</span>}
@@ -266,27 +284,25 @@
                     {!showHistory && (
                         <div className="footer-form">
                             <div className="input-row">
-                                <input type="text" placeholder="Titre de la mission..." value={text} onChange={e => setText(e.target.value)} />
-                                <select style={{width:'100px'}} value={priority} onChange={e => setPriority(e.target.value)}>
+                                <input style={{flex:3}} type="text" placeholder="Titre de la mission..." value={text} onChange={e => setText(e.target.value)} />
+                                <select style={{flex:1}} value={priority} onChange={e => setPriority(e.target.value)}>
                                     <option value="P1">🔴 Urgent</option><option value="P2">🟠 Important</option><option value="P3">⚪ Normal</option>
                                 </select>
                             </div>
-
                             <div className="multi-select-container">
                                 {STAFF.map(s => (
-                                    <div key={s} className={`staff-tag ${selectedStaffs.includes(s) ? 'selected' : ''}`} onClick={() => toggleStaff(s)}>
+                                    <div key={s} className={`staff-tag ${selectedStaffs.includes(s) ? 'selected' : ''}`} onClick={() => setSelectedStaffs(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}>
                                         {s}
                                     </div>
                                 ))}
                             </div>
-
                             <div className="input-row">
-                                <input style={{flex:2}} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                                <input style={{flex:1}} type="date" value={date} onChange={e => setDate(e.target.value)} />
                                 <select style={{flex:1}} value={isRecurring ? "YES" : "NO"} onChange={e => setIsRecurring(e.target.value === "YES")}>
                                     <option value="NO">Unique</option><option value="YES">🔄 Hebdo</option>
                                 </select>
                             </div>
-                            <button className="add-btn" onClick={handleAddTask}>AJOUTER LA MISSION</button>
+                            <button className="add-btn" onClick={handleAddTask}>CRÉER LA MISSION</button>
                         </div>
                     )}
                 </div>
