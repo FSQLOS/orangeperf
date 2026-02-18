@@ -184,12 +184,13 @@ export default function MobileDashboard({ config }) {
 
                 // FONCTION HELPER POUR INCRÉMENTER (Mois + Jour + Global)
                 const updateStat = (key, val = modifier) => {
+                    if (!isPret) {
                     tMonth[v][key] += val;
                     g_Counts[key] += val;
                     if (isToday) tDay[v][key] += val;
                 };
 
-                    if (isTerm) {
+                    if (isTerm && isPret) {
                         updateStat('Terminaux');
                         g_Term += modifier;
                         if (isReco) updateStat('Reco');
