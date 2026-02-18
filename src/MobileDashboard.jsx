@@ -57,8 +57,8 @@ export default function MobileDashboard({ config }) {
 
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
     const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "REDMI NOTE", "CROSSCALL STELLAR"];
-    const KEY_NOT_TERM = ["DBRAMENTE", "KIT PIETON", "FOLIO", "COQUE", "VT", "QDOS", "PROTECTION", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE"];
-    const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
+    const KEY_NOT_TERM = ["DBRAMENTE", "DBRAMANTE", "KIT PIETON", "FOLIO", "COQUE", "VT", "QDOS", "PROTECTION", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE", "TW"];
+    const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MONO", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
     const EXCLUDED_PRICES = [9, 24, 39];
 
     const getMonthInfo = () => {
@@ -72,8 +72,8 @@ export default function MobileDashboard({ config }) {
         const l = lib.toUpperCase();
         if (l.includes("PARAFOUDRE") || l.includes("MULTIPRISE")) return "AUTRE";
         if (l.includes("PRET")) return "PRET";
-        if (l.includes("COQUE") || l.includes("ETUI") || l.includes("FOLIO") || l.includes("DBRAMENTE") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
-        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("KIT PIETON") || l.includes("BRACELET") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("ENCEINTE") || l.includes("AIRPODS") || l.includes("BANDOULIERE") || l.includes("BUDS") || l.includes("MONTRE") || l.includes("WATCH") || l.includes("M/L") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
+        if (l.includes("COQUE") || l.includes("ETUI") || l.includes("FOLIO") || l.includes("DBRAMENTE") || l.includes("DBRAMANTE") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
+        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("KIT PIETON") || l.includes("BRACELET") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("ENCEINTE") || l.includes("AIRPODS") || l.includes("BANDOULIERE") || l.includes("BUDS") || l.includes("TW") || l.includes("MONTRE") || l.includes("WATCH") || l.includes("M/L") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
         if (l.includes("ASSURANCE") || CODES.Assurance.includes(code)) return "SERV";
         if (l.includes("CYBER")) return "HOME";
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
