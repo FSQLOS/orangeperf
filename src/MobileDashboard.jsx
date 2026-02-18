@@ -306,30 +306,48 @@ export default function MobileDashboard({ config }) {
         <div className="team-list">
         {sortedTeamCodes.map((code, index) => {
             const s = currentStats[code];
-            if (s.CA === 0 && s.Terminaux === 0) return null;
             const name = teamMap[code] || code;
+
+            // 1. CALCULS DES TAUX
+            const txAssur = s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0;
             const attachRate = s.Terminaux > 0 ? (s.nbAcc / s.Terminaux).toFixed(1) : 0;
-            const tauxReco = s.Terminaux > 0 ? Math.round((s.Reco / s.Terminaux) * 100) : 0;
+
+            // Taux Cyber
             const baseCyber = (s.Broadband + s.MIG + s.MEV + s.Mobile);
             const tauxCyber = baseCyber > 0 ? Math.round((s.Cyber / baseCyber) * 100) : 0;
 
+            // Taux Reconditionné (Reco / Terminaux Totaux)
+            const tauxReco = s.Terminaux > 0 ? Math.round((s.Reco / s.Terminaux) * 100) : 0;
+
             return (
-                <div key={code} className="seller-card-v2" onClick={() => setSelectedSeller({ code, name, data: s })}>
-                <div className="seller-main-info">
-                <div className="rank-badge">{index + 1}</div>
-                <div className="name-box">
-                <div className="name">{name}</div>
-                <div className="basic-kpis">📱 {s.Terminaux} <span className="sep">|</span> 🛡️ {s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0}%</div>
+                <div key={code} className="seller-card" onClick={() => setSelectedSeller({ name, data: s })} style={{background:'white', marginBottom:'10px', padding:'15px', borderRadius:'20px', boxShadow:'0 2px 8px rgba(0,0,0,0.05)'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div>
+                <div style={{fontWeight:'bold', fontSize:'16px'}}>{index + 1}. {name}</div>
+                <div style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>
+                📱 {s.Terminaux} | 🛡️ {txAssur}% | ACC {attachRate}
                 </div>
                 </div>
-                <div className="seller-metrics">
-                <div className="metric-pill acc">ACC {attachRate}</div>
-                <div className="metric-pill reco"><Leaf size={10}/> {tauxReco}%</div>
-                <div className="metric-pill cyber"><Shield size={10}/> {tauxCyber}%</div>
-                <div className="ca-box"><strong>{Math.round(s.CA)}€</strong> <ChevronRight size={14} color="#FF7900" /></div>
+                <div style={{fontWeight:'900', color:'#FF7900', fontSize:'18px'}}>{Math.round(s.CA)}€</div>
+                </div>
+
+                {/* BADGES DE PERFORMANCE (Cyber + Reco) */}
+                <div style={{display:'flex', gap:'8px', marginTop:'10px', flexWrap: 'wrap'}}>
+                {tauxCyber > 0 && (
+                    <div style={{background:'#f5f0ff', color:'#6f42c1', padding:'3px 8px', borderRadius:'8px', fontSize:'10px', fontWeight:'bold', display:'flex', alignItems:'center', gap:'4px'}}>
+                    <Shield size={10}/> Cyber {tauxCyber}%
+                    </div>
+                )}
+
+                {/* On affiche le taux Reco s'il y a au moins un terminal vendu */}
+                {s.Terminaux > 0 && (
+                    <div style={{background:'#e6f7ed', color:'#10b981', padding:'3px 8px', borderRadius:'8px', fontSize:'10px', fontWeight:'bold', display:'flex', alignItems:'center', gap:'4px'}}>
+                    <Leaf size={10}/> Reco {tauxReco}%
+                    </div>
+                )}
                 </div>
                 </div>
-            )
+            );
         })}
         </div>
 
