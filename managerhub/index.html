@@ -26,7 +26,7 @@
             font-family: 'Inter', -apple-system, sans-serif;
             margin: 0;
             padding: 20px;
-            padding-bottom: 200px;
+            padding-bottom: 220px;
             letter-spacing: -0.01em;
         }
 
@@ -107,6 +107,7 @@
 
         .badge { font-size: 11px; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 8px; color: var(--text-secondary); margin-top: 6px; display: inline-block; margin-right: 8px; border: 1px solid var(--border-light); }
         .user-tag { width: 35px; height: 35px; background: var(--orange-gradient); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+        .section-title { font-size: 12px; color: var(--orange-primary); font-weight: 800; padding: 10px 16px 5px; text-transform: uppercase; letter-spacing: 0.1em; }
     </style>
 </head>
 <body>
@@ -125,6 +126,7 @@
             const [text, setText] = useState('');
             const [date, setDate] = useState('');
             const [priority, setPriority] = useState('P3');
+            const [isRecurring, setIsRecurring] = useState(false);
             const [selectedStaff, setSelectedStaff] = useState('');
             const [filter, setFilter] = useState('TOUS');
             const [showHistory, setShowHistory] = useState(false);
@@ -161,10 +163,13 @@
                     assigned_to: selectedStaff || null,
                     priority: priority,
                     due_date: date || null,
-                    created_by: currentUser
+                    created_by: currentUser,
+                    is_recurring: isRecurring
                 };
                 const { error } = await supabaseClient.from('tasks').insert([payload]);
-                if (!error) { setText(''); setDate(''); setPriority('P3'); setSelectedStaff(''); }
+                if (!error) {
+                    setText(''); setDate(''); setPriority('P3'); setSelectedStaff(''); setIsRecurring(false);
+                }
             }
 
             async function toggleTask(task) {
@@ -175,8 +180,17 @@
                     completed_at: task.is_done ? null : now
                 }).eq('id', task.id);
 
-                // Notification Pushover si validée
                 if (!error && !task.is_done) {
+                    if (task.is_recurring) {
+                        const nextDate = new Date(task.due_date || new Date());
+                        nextDate.setDate(nextDate.getDate() + 7);
+                        await supabaseClient.from('tasks').insert([{
+                            text: task.text, is_done: false, assigned_to: task.assigned_to,
+                            priority: task.priority, due_date: nextDate.toISOString().split('T')[0],
+                            created_by: "Système", is_recurring: true
+                        }]);
+                    }
+
                     const formData = new FormData();
                     formData.append("token", PUSHOVER_API_TOKEN);
                     formData.append("user", PUSHOVER_GROUP_KEY);
@@ -187,7 +201,29 @@
                 }
             }
 
-            const filteredTasks = filter === 'TOUS' ? tasks : tasks.filter(t => (t.assigned_to === filter) || (t.text.toLowerCase().includes(filter.toLowerCase())));
+            // Filtrage Intelligent Jour / Demain / Reste
+            const getFilteredTasks = () => {
+                const today = new Date().toISOString().split('T')[0];
+                const tomorrowDate = new Date();
+                tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+                const tomorrow = tomorrowDate.toISOString().split('T')[0];
+
+                let baseTasks = tasks;
+
+                // Si filtre collaborateur actif, on montre TOUT son travail
+                if (filter !== 'TOUS') {
+                    return baseTasks.filter(t => (t.assigned_to === filter) || (t.text.toLowerCase().includes(filter.toLowerCase())));
+                }
+
+                // Si mode 'TOUS' (Accueil), on restreint à aujourd'hui, demain et sans date
+                if (!showHistory) {
+                    return baseTasks.filter(t => !t.due_date || t.due_date === today || t.due_date === tomorrow);
+                }
+
+                return baseTasks;
+            };
+
+            const filteredTasks = getFilteredTasks();
 
             return (
                 <div className="container">
@@ -200,25 +236,44 @@
                     </div>
 
                     <div className="filter-bar">
-                        <div className={`filter-chip ${filter === 'TOUS' ? 'active' : ''}`} onClick={() => setFilter('TOUS')}>Tous</div>
+                        <div className={`filter-chip ${filter === 'TOUS' ? 'active' : ''}`} onClick={() => setFilter('TOUS')}>Aujourd'hui / Demain</div>
                         {STAFF.map(s => <div key={s} className={`filter-chip ${filter === s ? 'active' : ''}`} onClick={() => setFilter(s)}>{s}</div>)}
                     </div>
 
                     <div className="card">
-                        {filteredTasks.length === 0 ? <div style={{textAlign:'center', color:'#555', padding:40}}>Aucune mission.</div> :
-                        filteredTasks.map(t => (
-                            <div key={t.id} className={`task-item priority-${t.priority || 'P3'}`}>
-                                <div className={`checkbox ${t.is_done ? 'done' : ''}`} onClick={() => toggleTask(t)}>{t.is_done && "✓"}</div>
-                                <div style={{flex:1}}>
-                                    <div style={{fontSize:16, fontWeight:'600', textDecoration: t.is_done ? 'line-through' : 'none', color: t.is_done ? '#555' : '#EEE'}}>{t.text}</div>
-                                    <div>
-                                        {t.due_date && <span className="badge">📅 {new Date(t.due_date).toLocaleDateString('fr-FR')}</span>}
-                                        {t.assigned_to && <span className="badge">👤 {t.assigned_to}</span>}
-                                        {t.is_done && t.completed_at && <span className="badge" style={{color:'#4caf50'}}>Fait à {t.completed_at}</span>}
+                        {filteredTasks.length === 0 ? <div style={{textAlign:'center', color:'#555', padding:40}}>Aucune mission pour cette période.</div> :
+                        filteredTasks.map((t, index) => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const tomorrowDate = new Date();
+                            tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+                            const tomorrow = tomorrowDate.toISOString().split('T')[0];
+
+                            let showLabel = false;
+                            if (index === 0 || tasks[index-1].due_date !== t.due_date) showLabel = true;
+
+                            return (
+                                <React.Fragment key={t.id}>
+                                    {showLabel && filter === 'TOUS' && !showHistory && (
+                                        <div className="section-title">
+                                            {t.due_date === today ? "Aujourd'hui" : t.due_date === tomorrow ? "Demain" : "Missions de fond"}
+                                        </div>
+                                    )}
+                                    <div className={`task-item priority-${t.priority || 'P3'}`}>
+                                        <div className={`checkbox ${t.is_done ? 'done' : ''}`} onClick={() => toggleTask(t)}>{t.is_done && "✓"}</div>
+                                        <div style={{flex:1}}>
+                                            <div style={{fontSize:16, fontWeight:'600', textDecoration: t.is_done ? 'line-through' : 'none', color: t.is_done ? '#555' : '#EEE'}}>
+                                                {t.text} {t.is_recurring && <span style={{fontSize:12, verticalAlign:'middle'}}>🔄</span>}
+                                            </div>
+                                            <div>
+                                                {t.due_date && <span className="badge">📅 {new Date(t.due_date).toLocaleDateString('fr-FR')}</span>}
+                                                {t.assigned_to && <span className="badge">👤 {t.assigned_to}</span>}
+                                                {t.is_done && t.completed_at && <span className="badge" style={{color:'#4caf50'}}>Fait à {t.completed_at}</span>}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        ))}
+                                </React.Fragment>
+                            );
+                        })}
                     </div>
 
                     {!showHistory && (
@@ -231,6 +286,10 @@
                             </div>
                             <div className="input-row">
                                 <input style={{width:'150px'}} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                                <select style={{width:'120px'}} value={isRecurring ? "YES" : "NO"} onChange={e => setIsRecurring(e.target.value === "YES")}>
+                                    <option value="NO">Unique</option>
+                                    <option value="YES">🔄 Hebdo</option>
+                                </select>
                                 <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}>
                                     <option value="">👤 Assigner...</option>{STAFF.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
