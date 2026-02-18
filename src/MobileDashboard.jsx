@@ -184,12 +184,14 @@ export default function MobileDashboard({ config }) {
 
                 // FONCTION HELPER POUR INCRÉMENTER (Mois + Jour + Global)
                 const updateStat = (key, val = modifier) => {
-                    tMonth[v][key] += val;
-                    g_Counts[key] += val;
-                    if (isToday) tDay[v][key] += val;
+                    if (!isPret) { // <--- LE VERROU EST ICI
+                        tMonth[v][key] += val;
+                        g_Counts[key] += val; // Cette ligne met à jour ton bandeau boutique
+                        if (isToday) tDay[v][key] += val;
+                    }
                 };
 
-                    if (isTerm) {
+                    if (isTerm && isPret) {
                         updateStat('Terminaux');
                         g_Term += modifier;
                         if (isReco) updateStat('Reco');
