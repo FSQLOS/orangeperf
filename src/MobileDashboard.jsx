@@ -156,7 +156,7 @@ export default function MobileDashboard({ config }) {
 
                 let fam = getFamily(lib, codeArt);
 
-                let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
+                let isTerm = !isPret && (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
                 && !KEY_NOT_TERM.some(k => lib.includes(k)) && !isWatch && !lib.includes("COQUE") && !lib.includes("ETUI")
                 && !lib.includes("PROTECTION") && absVal > 15 && !isPret;
 
