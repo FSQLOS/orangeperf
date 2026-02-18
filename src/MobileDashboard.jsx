@@ -133,6 +133,7 @@ export default function MobileDashboard({ config }) {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
             let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
             if (!rowDate) return;
+
             let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
             let isToday = todayFormats.some(f => rowDate.includes(f));
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
@@ -145,20 +146,22 @@ export default function MobileDashboard({ config }) {
 
                 if (lib.startsWith("WP")) return;
 
-                // 1. LOGIQUE REMBOURSEMENT & WATCH
+                // --- 1. VARIABLES DE DÉTECTION ---
                 const isRefund = caVal < 0;
                 const absVal = Math.abs(caVal);
                 const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
                 const isParafoudre = lib.includes("PARAFOUDRE") || lib.includes("MULTIPRISE");
-                const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
-                const isPret = lib.includes("PRET");
                 const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT");
-                const isBlacklisted = BLACKLIST_CA.some(w => lib.includes(w)) || EXCLUDED_PRICES.includes(absVal);
+                const isPret = lib.includes("PRET");
 
-                // 2. DÉTERMINATION DE LA FAMILLE
+                // On sépare la blacklist libellé de la blacklist prix
+                const isLabelBlacklisted = BLACKLIST_CA.some(w => lib.includes(w));
+                const isPriceExcluded = EXCLUDED_PRICES.includes(absVal);
+
+                // --- 2. DÉTERMINATION DE LA FAMILLE ---
                 let fam = getFamily(lib, codeArt);
 
-                // 3. LOGIQUE TERMINAUX
+                // --- 3. LOGIQUE TERMINAUX ---
                 let isTerm = (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
                 && !KEY_NOT_TERM.some(k => lib.includes(k))
                 && !isWatch && !lib.includes("COQUE") && !lib.includes("ETUI") && !lib.includes("PROTECTION")
@@ -166,28 +169,30 @@ export default function MobileDashboard({ config }) {
 
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC") || lib.includes("RENEWD"));
 
-                // 4. CALCUL DU CA HT STRICT (La règle d'or : Seuls ACC, PROT et WATCH rapportent)
+                // --- 4. CALCUL DU CA HT (L'argent) ---
                 let ht = 0;
                 if (!isRefund) {
                     if (isWatch) {
                         ht = caVal / 1.2;
-                    } else if ((fam === "ACC" || fam === "PROT") && !isBlacklisted && !isTransfert && !isParafoudre && !isTerm) {
+                    }
+                    // Pour ACC et PROT, on ignore "isPriceExcluded" (pour que le 39€ de Yannis passe)
+                    else if ((fam === "ACC" || fam === "PROT") && !isLabelBlacklisted && !isTransfert && !isParafoudre && !isTerm) {
                         ht = caVal / 1.2;
                     }
-                    // Tout ce qui est fam "AUTRE" (DIVERS), "FORFAIT", "BOX", etc. reste à ht = 0
                 }
 
-                const article = { lib, fam, ca: caVal };
+                // Pour l'affichage dans le ticket : on garde caVal si c'est du CA ou si c'est un prix exclu (info)
+                const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0 };
                 const modifier = isRefund ? -1 : 1;
 
-                // Mise à jour CA
+                // Mise à jour des stats globales et vendeur
                 tMonth[v].CA += ht;
                 g_CA += ht;
 
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
                 tMonth[v].tickets[ticketId].items.push(article);
 
-                // 5. COMPTEURS VOLUMES
+                // --- 5. COMPTEURS VOLUMES ---
                 if (isTerm) {
                     tMonth[v].Terminaux += modifier;
                     g_Counts.Terminaux += modifier;
@@ -195,12 +200,10 @@ export default function MobileDashboard({ config }) {
                     if(isReco){ tMonth[v].Reco += modifier; g_Counts.Reco += modifier; }
                 }
 
-                // nbAcc : Seulement les vrais accessoires mobiles (Montres incluses, Parafoudres exclus)
                 if ((fam === "ACC" || fam === "PROT" || isWatch) && absVal > 1 && !isParafoudre) {
                     tMonth[v].nbAcc += modifier;
                 }
 
-                // Compteurs Services/Box
                 if (CODES.Broadband.includes(codeArt)) { tMonth[v].Broadband += modifier; g_Counts.Broadband += modifier; }
                 if (CODES.Mobile.includes(codeArt)) { tMonth[v].Mobile += modifier; g_Counts.Mobile += modifier; }
                 if (CODES.Assurance.includes(codeArt)) { tMonth[v].Assurance += modifier; g_Counts.Assurance += modifier; g_Assur += modifier; }
