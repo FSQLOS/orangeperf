@@ -32,6 +32,7 @@ export default function MobileDashboard({ config }) {
     const FAMILIES = {
         BOX: { label: "🌐 LIVEBOX", color: "#527EDB" },
         FORFAIT: { label: "📱 FORFAIT MOBILE", color: "#FF7900" },
+        HOME: { label: "🛡️ CYBER / MAISON P.", color: "#6f42c1" },
         PRET: { label: "🔄 PRÊT MOBILE", color: "#9ca3af" },
         APPLE: { label: "🍎 APPLE", color: "#1a1a1a" },
         SAMSUNG: { label: "🪐 SAMSUNG", color: "#034EA2" },
@@ -75,7 +76,7 @@ export default function MobileDashboard({ config }) {
         if (l.includes("COQUE") || l.includes("ETUI") || l.includes("FOLIO") || l.includes("DBRAMENTE") || l.includes("DBRAMANTE") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
         if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("KIT PIETON") || l.includes("BRACELET") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("ENCEINTE") || l.includes("AIRPODS") || l.includes("BANDOULIERE") || l.includes("BUDS") || l.includes("TW") || l.includes("MONTRE") || l.includes("WATCH") || l.includes("M/L") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
         if (l.includes("ASSURANCE") || CODES.Assurance.includes(code)) return "SERV";
-        if (l.includes("CYBER") || CODES.Cyber.includes(code)) return "HOME";
+        if (l.includes("CYBER") || CODES.Cyber.includes(code) || l.includes("MP")) return "HOME";
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
         if (CODES.Broadband.includes(code)) return "BOX";
         if (CODES.Mobile.includes(code)) return "FORFAIT";
