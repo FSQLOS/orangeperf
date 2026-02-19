@@ -162,27 +162,22 @@ export default function MobileDashboard({ config }) {
 
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
 
-                // CALCUL CA HT STRICT (Règle de Yannis & Jean-Max)
                 let ht = 0;
                 if (!isRefund) {
                     if (isWatch) {
                         ht = caVal / 1.2;
                     } else if ((fam === "ACC" || fam === "PROT") && !isLabelBlacklisted && !isTransfert && !isParafoudre && !isTerm) {
-                        // On ignore isPriceExcluded ici pour que les coques à 39€ comptent
                         ht = caVal / 1.2;
                     }
                 }
 
-                // MISE À JOUR MOIS & GLOBAL
                 tMonth[v].CA += ht;
                 g_CA += ht;
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
 
-                // Pour l'affichage ticket : on montre le prix si c'est du CA ou si c'est un prix exclu connu
                 const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0 };
                 tMonth[v].tickets[ticketId].items.push(article);
 
-                // FONCTION HELPER POUR INCRÉMENTER (Mois + Jour + Global)
                 const updateStat = (key, val = modifier) => {
                     tMonth[v][key] += val;
                     g_Counts[key] += val;
@@ -220,6 +215,31 @@ export default function MobileDashboard({ config }) {
         setLoading(false);
     };
 
+    const openGlobalComparison = (category) => {
+        const nbVendeurs = Object.keys(teamMap).length || 1;
+        const objectives = config?.objectifs || {};
+
+        // Calcul de l'objectif individuel
+        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((objectives[category] || 0) / nbVendeurs) : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
+
+        const chartData = Object.keys(currentStats).map(code => {
+            const s = currentStats[code];
+            let done = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
+
+            // Calcul du reste à faire (min 0)
+            let remaining = Math.max(0, indivTarget - done);
+
+            return {
+                name: teamMap[code] || code,
+                done,
+                remaining,
+                color: (done >= indivTarget) ? '#10b981' : '#FF7900'
+            };
+        }).sort((a, b) => b.done - a.done);
+
+        setCompareMode({ category, data: chartData, isPercent: category === 'TxAssur', target: indivTarget });
+    };
+
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
 
@@ -234,19 +254,6 @@ export default function MobileDashboard({ config }) {
             'MP': { icon: <Home size={16} />, color: '#32C832', label: 'Maison P.', grad: 'linear-gradient(135deg, #32C832, #6cdf6c)' }
         };
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
-    };
-
-    const openGlobalComparison = (category) => {
-        const nbVendeurs = Object.keys(teamMap).length || 1;
-        const objectives = config?.objectifs || {};
-        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((objectives[category] || 0) / nbVendeurs) : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
-        const data = Object.keys(currentStats).map(code => {
-            const s = currentStats[code];
-            let val = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
-            let color = (val >= indivTarget) ? '#10b981' : (val >= indivTarget / 2 ? '#f59e0b' : '#ef4444');
-            return { name: teamMap[code] || code, val, color };
-        }).sort((a, b) => b.val - a.val);
-        setCompareMode({ category, data, isPercent: category === 'TxAssur', target: indivTarget });
     };
 
     const mInfo = getMonthInfo();
@@ -330,27 +337,14 @@ export default function MobileDashboard({ config }) {
         })}
         </div>
 
-        <div className="section-label">📖 LÉGENDE DES INDICATEURS</div>
+        <div className="section-label">📖 LÉGENDE</div>
         <div className="legend-container">
         <div className="legend-group">
-        <h3>Volumes (Totaux)</h3>
+        <h3>Volumes</h3>
         <div className="legend-grid">
         <div className="legend-item"><Smartphone size={14}/> <span>Terminaux (Neufs + Reco)</span></div>
-        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles (Ventes/Exclu)</span></div>
-        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox (Fibre/ADSL)</span></div>
-        <div className="legend-item"><Shield size={14} color="#666"/> <span>Nombre d'Assurances</span></div>
-        <div className="legend-item"><Zap size={14} color="#FFCC00"/> <span>MIG (Migrations vers Fibre)</span></div>
-        <div className="legend-item"><TrendingUp size={14} color="#856404"/> <span>MEV (Montées en Version)</span></div>
-        <div className="legend-item"><Home size={14} color="#32C832"/> <span>Maison Protégée</span></div>
-        </div>
-        </div>
-        <div className="legend-group">
-        <h3>Taux de performance (%)</h3>
-        <div className="legend-grid">
-        <div className="legend-item"><div className="pill-mini acc">ACC</div> <span>Nb Accessoires / Nb Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini reco"><Leaf size={10}/></div> <span>Taux de Reconditionné / Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini cyber"><Shield size={10}/></div> <span>Pénétration Cyber / (Box+Mig+Mev+Mob)</span></div>
-        <div className="legend-item">🛡️ <span>Taux d'Assurance / Terminaux</span></div>
+        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles</span></div>
+        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox</span></div>
         </div>
         </div>
         </div>
@@ -358,16 +352,49 @@ export default function MobileDashboard({ config }) {
 
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
-            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>{compareMode.category}</h2><X onClick={() => setCompareMode(null)} /></div>
-            <div style={{height: '380px', padding: '10px'}}>
+            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh', width: '95%'}} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+            <h2>{compareMode.category} <span style={{fontSize: '11px', opacity: 0.5}}>(Obj: {compareMode.target}{compareMode.isPercent ? '%' : ''})</span></h2>
+            <X onClick={() => setCompareMode(null)} />
+            </div>
+            <div style={{height: '400px', padding: '10px'}}>
             <Bar
-            data={{ labels: compareMode.data.map(d => d.name), datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 8, barThickness: 28 }] }}
+            data={{
+                labels: compareMode.data.map(d => d.name),
+                         datasets: [
+                             {
+                                 label: 'Réalisé',
+                                 data: compareMode.data.map(d => d.done),
+                         backgroundColor: compareMode.data.map(d => d.color),
+                         borderRadius: 8,
+                         barThickness: 24
+                             },
+                             {
+                                 label: 'Reste à faire',
+                                 data: compareMode.data.map(d => d.remaining),
+                         backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                         borderRadius: 8,
+                         barThickness: 24
+                             }
+                         ]
+            }}
             options={{
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                layout: { padding: { right: 45, left: 10 } },
-                plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'right', offset: 8, color: '#1a1a1a', font: { weight: 'bold', size: 13 }, formatter: (v) => v + (compareMode.isPercent ? '%' : '') } },
-                         scales: { x: { display: false, beginAtZero: true, suggestedMax: Math.max(...compareMode.data.map(d => d.val)) * 1.2 }, y: { grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } } }
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end', align: 'right', color: '#1a1a1a',
+                        font: { weight: 'bold', size: 11 },
+                        formatter: (value, context) => {
+                            if (context.datasetIndex === 0) return value + (compareMode.isPercent ? '%' : '');
+                            return value > 0 ? "(-" + value + ")" : "✅";
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, display: false, beginAtZero: true },
+                    y: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: 'bold' } } }
+                }
             }}
             />
             </div>
@@ -385,20 +412,8 @@ export default function MobileDashboard({ config }) {
             <div className="ro-value">{Math.round(globalData.ca)} €</div>
             </div>
             <div className="ro-grid">
-            <div className="ro-card">
-            <div className="ro-icon"><Target size={18} color="#666"/></div>
-            <div className="ro-sublabel">Objectif Prorata</div>
-            <div className="ro-subval">{prorataTarget} €</div>
-            </div>
-            <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}>
-            <div className="ro-icon">{isAhead ? <TrendingUp size={18} color="#10b981"/> : <TrendingDown size={18} color="#ef4444"/>}</div>
-            <div className="ro-sublabel">Écart R/O</div>
-            <div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div>
-            </div>
-            </div>
-            <div className="ro-footer-card">
-            <div className="ro-footer-item"><span>Objectif Total Mois</span><strong>{objTotalCA} €</strong></div>
-            <div className="ro-footer-item"><span>Atterrissage estimé</span><strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong></div>
+            <div className="ro-card"><div className="ro-sublabel">Objectif Prorata</div><div className="ro-subval">{prorataTarget} €</div></div>
+            <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}><div className="ro-sublabel">Écart</div><div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div></div>
             </div>
             </div>
             </div>
