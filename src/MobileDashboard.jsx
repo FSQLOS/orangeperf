@@ -290,10 +290,13 @@ export default function MobileDashboard({ config }) {
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
             const count = viewMode === 'month' ? (globalData.counts[key] || 0) : Object.values(currentStats).reduce((acc, s) => acc + (s[key] || 0), 0);
+            const obj = config?.objectifs?.[key] || 0;
+            const displayVal = obj > 0 && viewMode === 'month' ? `${count} / ${obj}` : count;
+
             return (
                 <div key={key} className="stat-card" onClick={() => openGlobalComparison(key)}>
                 <div className="icon-badge" style={{ background: style.grad }}>{style.icon}</div>
-                <div className="stat-value">{count}</div>
+                <div className="stat-value">{displayVal}</div>
                 <div className="card-label">{style.label}</div>
                 </div>
             )
@@ -334,7 +337,7 @@ export default function MobileDashboard({ config }) {
 
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
-            <div className="glass-modal" style={{maxHeight:'85vh', width: '95%'}} onClick={e => e.stopPropagation()}>
+            <div className="glass-modal" style={{width: '95%', maxWidth: '500px'}} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
             <h2 style={{fontSize: '16px'}}>{compareMode.category} <span style={{fontSize: '11px', opacity: 0.5}}>(Obj: {compareMode.target}{compareMode.isPercent ? '%' : ''})</span></h2>
             <X onClick={() => setCompareMode(null)} />
@@ -386,24 +389,6 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        {caModal && (
-            <div className="glass-overlay" onClick={() => setCaModal(false)}>
-            <div className="glass-modal" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
-            <div className="modal-header"><h2>Performance Boutique</h2><X onClick={() => setCaModal(false)} /></div>
-            <div className="ro-container">
-            <div className="ro-main-stat">
-            <div className="ro-label">Réalisé au {mInfo.now} du mois</div>
-            <div className="ro-value">{Math.round(globalData.ca)} €</div>
-            </div>
-            <div className="ro-grid">
-            <div className="ro-card"><div className="ro-sublabel">Objectif Prorata</div><div className="ro-subval">{prorataTarget} €</div></div>
-            <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}><div className="ro-sublabel">Écart</div><div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div></div>
-            </div>
-            </div>
-            </div>
-            </div>
-        )}
-
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal" onClick={e => e.stopPropagation()}>
@@ -435,7 +420,7 @@ export default function MobileDashboard({ config }) {
         )}
 
         <style jsx>{`
-            .modern-dashboard { font-family: sans-serif; background: #f4f7f6; min-height: 100vh; }
+            .modern-dashboard { font-family: sans-serif; background: #f4f7f6; min-height: 100vh; margin: 0; padding: 0; }
             .loader-screen { height: 100vh; display: flex; align-items: center; justify-content: center; }
             .header-glass { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); }
             .ca-badge { background: #1a1a1a; color: white; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
@@ -455,7 +440,7 @@ export default function MobileDashboard({ config }) {
             .stat-card.featured { background: #FF7900; color: white; }
             .circular-wrap { width: 50px; height: 50px; margin-bottom: 8px; }
             .icon-badge { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; color: white; }
-            .stat-value { font-size: 18px; font-weight: 900; }
+            .stat-value { font-size: 18px; font-weight: 900; white-space: nowrap; }
             .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 4px; }
             .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); cursor: pointer; }
             .rank-badge { width: 22px; height: 22px; background: #1a1a1a; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
@@ -464,21 +449,30 @@ export default function MobileDashboard({ config }) {
             .seller-metrics { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
             .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; }
             .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; font-size: 13px; }
-            .glass-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 15px; }
-            .glass-modal { background: white; border-radius: 25px; width: 100%; max-width: 500px; padding: 20px; overflow: hidden; }
-            .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-            .modal-scroll { max-height: 60vh; overflow-y: auto; padding-right: 5px; }
-            .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+
+            .glass-overlay {
+                position: fixed; inset: 0;
+                background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+                z-index: 2000;
+                display: flex; align-items: center; justify-content: center;
+                padding: 15px;
+            }
+            .glass-modal {
+                background: white; border-radius: 25px;
+                width: 100%; max-width: 500px;
+                padding: 20px;
+                box-sizing: border-box;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }
+            .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%; }
+            .modal-scroll { max-height: 60vh; overflow-y: auto; width: 100%; }
+            .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; border: 1px solid #eee; }
             .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; margin-bottom: 10px; }
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
-            .ticket-line span { color: #333; flex: 1; padding-right: 10px; }
-            .ro-main-stat { text-align: center; margin-bottom: 20px; }
-            .ro-label { font-size: 14px; color: #666; }
-            .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
-            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+            .ticket-line span { color: #333; flex: 1; padding-right: 10px; text-align: left; }
+
+            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
             .ro-card { border: 1px solid #eee; padding: 12px; border-radius: 15px; text-align: center; }
-            .ro-sublabel { font-size: 11px; color: #999; margin: 5px 0; }
-            .ro-subval { font-size: 16px; font-weight: bold; }
             `}</style>
             </div>
     );
