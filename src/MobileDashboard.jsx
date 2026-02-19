@@ -406,7 +406,7 @@ export default function MobileDashboard({ config }) {
 
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
-            <div className="glass-modal bounce-in" onClick={e => e.stopPropagation()}>
+            <div className="glass-modal pop-in" onClick={e => e.stopPropagation()}>
             <div className="modal-header"><h2>{selectedSeller.name}</h2><X onClick={() => setSelectedSeller(null)} /></div>
             <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
@@ -419,10 +419,7 @@ export default function MobileDashboard({ config }) {
                         <div key={famKey} style={{marginBottom: '10px'}}>
                         <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px'}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} className="ticket-line">
-                            <span>{item.lib}</span>
-                            <strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong>
-                            </div>
+                            <div key={idx} className="ticket-line"><span>{item.lib}</span><strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong></div>
                         ))}
                         </div>
                     )
@@ -468,7 +465,7 @@ export default function MobileDashboard({ config }) {
             .glass-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 15px; }
             .glass-modal { background: white; border-radius: 25px; width: 100%; max-width: 500px; padding: 20px; overflow: hidden; }
             .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-            .modal-scroll { max-height: 65vh; overflow-y: auto; padding-right: 5px; }
+            .modal-scroll { max-height: 60vh; overflow-y: auto; padding-right: 5px; }
             .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
             .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; margin-bottom: 10px; }
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
