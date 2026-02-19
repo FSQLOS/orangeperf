@@ -162,27 +162,22 @@ export default function MobileDashboard({ config }) {
 
                 let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
 
-                // CALCUL CA HT STRICT (Règle de Yannis & Jean-Max)
                 let ht = 0;
                 if (!isRefund) {
                     if (isWatch) {
                         ht = caVal / 1.2;
                     } else if ((fam === "ACC" || fam === "PROT") && !isLabelBlacklisted && !isTransfert && !isParafoudre && !isTerm) {
-                        // On ignore isPriceExcluded ici pour que les coques à 39€ comptent
                         ht = caVal / 1.2;
                     }
                 }
 
-                // MISE À JOUR MOIS & GLOBAL
                 tMonth[v].CA += ht;
                 g_CA += ht;
                 if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
 
-                // Pour l'affichage ticket : on montre le prix si c'est du CA ou si c'est un prix exclu connu
                 const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0 };
                 tMonth[v].tickets[ticketId].items.push(article);
 
-                // FONCTION HELPER POUR INCRÉMENTER (Mois + Jour + Global)
                 const updateStat = (key, val = modifier) => {
                     tMonth[v][key] += val;
                     g_Counts[key] += val;
@@ -220,6 +215,26 @@ export default function MobileDashboard({ config }) {
         setLoading(false);
     };
 
+    const openGlobalComparison = (category) => {
+        const nbVendeurs = Object.keys(teamMap).length || 1;
+        const objectives = config?.objectifs || {};
+        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((objectives[category] || 0) / nbVendeurs) : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
+
+        const chartData = Object.keys(currentStats).map(code => {
+            const s = currentStats[code];
+            let done = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
+            let remaining = Math.max(0, indivTarget - done);
+            return {
+                name: teamMap[code] || code,
+                done,
+                remaining,
+                color: (done >= indivTarget) ? '#10b981' : '#FF7900'
+            };
+        }).sort((a, b) => b.done - a.done);
+
+        setCompareMode({ category, data: chartData, isPercent: category === 'TxAssur', target: indivTarget });
+    };
+
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
     const sortedTeamCodes = Object.keys(currentStats).sort((a, b) => currentStats[b].CA - currentStats[a].CA);
 
@@ -236,30 +251,11 @@ export default function MobileDashboard({ config }) {
         return styles[cat] || { icon: <AlertTriangle size={16} />, color: '#999', label: cat, grad: '#eee' };
     };
 
-    const openGlobalComparison = (category) => {
-        const nbVendeurs = Object.keys(teamMap).length || 1;
-        const objectives = config?.objectifs || {};
-        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((objectives[category] || 0) / nbVendeurs) : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
-        const chartData = Object.keys(currentStats).map(code => {
-            const s = currentStats[code];
-            let done = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
-            // Calcul du reste à faire (minimum 0 pour ne pas avoir de barres négatives si objectif dépassé)
-            let remaining = Math.max(0, indivTarget - done);
-        const data = Object.keys(currentStats).map(code => {
-            const s = currentStats[code];
-            let val = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
-            let color = (val >= indivTarget) ? '#10b981' : (val >= indivTarget / 2 ? '#f59e0b' : '#ef4444');
-            return { name: teamMap[code] || code, val, color };
-        }).sort((a, b) => b.val - a.val);
-        setCompareMode({ category, data, isPercent: category === 'TxAssur', target: indivTarget });
-    };
-
     const mInfo = getMonthInfo();
     const objTotalCA = config?.objectifs?.CA || 0;
     const prorataTarget = Math.round(objTotalCA * mInfo.pct);
     const diffCA = Math.round(globalData.ca - prorataTarget);
     const isAhead = diffCA >= 0;
-    const landingCA = mInfo.now > 0 ? Math.round(globalData.ca / mInfo.now * mInfo.total) : 0;
 
     if (loading) return <div className="loader-screen">Chargement...</div>;
 
@@ -334,71 +330,54 @@ export default function MobileDashboard({ config }) {
             )
         })}
         </div>
-
-        <div className="section-label">📖 LÉGENDE DES INDICATEURS</div>
-        <div className="legend-container">
-        <div className="legend-group">
-        <h3>Volumes (Totaux)</h3>
-        <div className="legend-grid">
-        <div className="legend-item"><Smartphone size={14}/> <span>Terminaux (Neufs + Reco)</span></div>
-        <div className="legend-item"><Activity size={14} color="#FF7900"/> <span>Actes Mobiles (Ventes/Exclu)</span></div>
-        <div className="legend-item"><Wifi size={14} color="#527EDB"/> <span>Livebox (Fibre/ADSL)</span></div>
-        <div className="legend-item"><Shield size={14} color="#666"/> <span>Nombre d'Assurances</span></div>
-        <div className="legend-item"><Zap size={14} color="#FFCC00"/> <span>MIG (Migrations vers Fibre)</span></div>
-        <div className="legend-item"><TrendingUp size={14} color="#856404"/> <span>MEV (Montées en Version)</span></div>
-        <div className="legend-item"><Home size={14} color="#32C832"/> <span>Maison Protégée</span></div>
-        </div>
-        </div>
-        <div className="legend-group">
-        <h3>Taux de performance (%)</h3>
-        <div className="legend-grid">
-        <div className="legend-item"><div className="pill-mini acc">ACC</div> <span>Nb Accessoires / Nb Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini reco"><Leaf size={10}/></div> <span>Taux de Reconditionné / Terminaux</span></div>
-        <div className="legend-item"><div className="pill-mini cyber"><Shield size={10}/></div> <span>Pénétration Cyber / (Box+Mig+Mev+Mob)</span></div>
-        <div className="legend-item">🛡️ <span>Taux d'Assurance / Terminaux</span></div>
-        </div>
-        </div>
-        </div>
         </div>
 
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
-            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'80vh'}} onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2>{compareMode.category}</h2><X onClick={() => setCompareMode(null)} /></div>
-            <div style={{height: '380px', padding: '10px'}}>
+            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'85vh', width: '95%'}} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+            <h2 style={{fontSize: '16px'}}>{compareMode.category} <span style={{fontSize: '11px', opacity: 0.5}}>(Obj: {compareMode.target}{compareMode.isPercent ? '%' : ''})</span></h2>
+            <X onClick={() => setCompareMode(null)} />
+            </div>
+            <div style={{height: `${Math.max(350, compareMode.data.length * 45)}px`, padding: '10px 5px'}}>
             <Bar
-            data={{ labels: compareMode.data.map(d => d.name), datasets: [{ data: compareMode.data.map(d => d.val), backgroundColor: compareMode.data.map(d => d.color), borderRadius: 6, barThickness: 20 }] }}
+            data={{
+                labels: compareMode.data.map(d => d.name),
+                         datasets: [
+                             {
+                                 label: 'Fait',
+                                 data: compareMode.data.map(d => d.done),
+                         backgroundColor: compareMode.data.map(d => d.color),
+                         borderRadius: 6,
+                         barThickness: 20,
+                         datalabels: { anchor: 'center', align: 'center', color: '#fff', font: { weight: '900', size: 11 } }
+                             },
+                             {
+                                 label: 'Reste',
+                                 data: compareMode.data.map(d => d.remaining),
+                         backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                         borderRadius: 6,
+                         barThickness: 20,
+                         datalabels: { anchor: 'end', align: 'right', color: '#1a1a1a', offset: 8, font: { weight: 'bold', size: 12 } }
+                             }
+                         ]
+            }}
             options={{
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 layout: { padding: { right: 70, left: 10, top: 10, bottom: 10 } },
                 plugins: {
                     legend: { display: false },
                     datalabels: {
                         clip: false,
                         formatter: (value, context) => {
-                            // Si on est sur le dataset "Fait" (Index 0)
-                            if (context.datasetIndex === 0) {
-                                return value > 0 ? value + (compareMode.isPercent ? '%' : '') : '';
-                            }
-                            // Si on est sur le dataset "Reste" (Index 1)
-                            return value > 0 ? "(-" + value + ")" : "✅";
+                            if (context.datasetIndex === 0) return value > 0 ? value + (compareMode.isPercent ? '%' : '') : '';
+        return value > 0 ? "(-" + value + ")" : "✅";
                         }
                     }
                 },
                 scales: {
-                    x: {
-                        stacked: true,
-                        display: false,
-                        beginAtZero: true,
-                        suggestedMax: Math.max(...compareMode.data.map(d => d.done + d.remaining)) * 1.2
-                    },
-                    y: {
-                        stacked: true,
-                        grid: { display: false },
-                        ticks: { autoSkip: false, font: { size: 12, weight: 'bold' } }
-                    }
+                    x: { stacked: true, display: false, beginAtZero: true, suggestedMax: Math.max(...compareMode.data.map(d => d.done + d.remaining)) * 1.2 },
+                         y: { stacked: true, grid: { display: false }, ticks: { autoSkip: false, font: { size: 12, weight: 'bold' } } }
                 }
             }}
             />
@@ -417,20 +396,8 @@ export default function MobileDashboard({ config }) {
             <div className="ro-value">{Math.round(globalData.ca)} €</div>
             </div>
             <div className="ro-grid">
-            <div className="ro-card">
-            <div className="ro-icon"><Target size={18} color="#666"/></div>
-            <div className="ro-sublabel">Objectif Prorata</div>
-            <div className="ro-subval">{prorataTarget} €</div>
-            </div>
-            <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}>
-            <div className="ro-icon">{isAhead ? <TrendingUp size={18} color="#10b981"/> : <TrendingDown size={18} color="#ef4444"/>}</div>
-            <div className="ro-sublabel">Écart R/O</div>
-            <div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div>
-            </div>
-            </div>
-            <div className="ro-footer-card">
-            <div className="ro-footer-item"><span>Objectif Total Mois</span><strong>{objTotalCA} €</strong></div>
-            <div className="ro-footer-item"><span>Atterrissage estimé</span><strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong></div>
+            <div className="ro-card"><div className="ro-sublabel">Objectif Prorata</div><div className="ro-subval">{prorataTarget} €</div></div>
+            <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}><div className="ro-sublabel">Écart</div><div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div></div>
             </div>
             </div>
             </div>
@@ -452,7 +419,10 @@ export default function MobileDashboard({ config }) {
                         <div key={famKey} style={{marginBottom: '10px'}}>
                         <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px'}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} className="ticket-line"><span>{item.lib}</span><strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong></div>
+                            <div key={idx} className="ticket-line">
+                            <span>{item.lib}</span>
+                            <strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong>
+                            </div>
                         ))}
                         </div>
                     )
@@ -465,50 +435,51 @@ export default function MobileDashboard({ config }) {
         )}
 
         <style jsx>{`
-            .loader-screen { height: 100vh; display: flex; align-items: center; justify-content: center; font-family: sans-serif; }
-            .global-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 10px 15px; scrollbar-width: none; }
-            .stat-card { min-width: 100px; background: white; border-radius: 20px; padding: 15px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-            .stat-card.featured { background: #FF7900; color: white; }
-            .circular-wrap { width: 50px; height: 50px; margin-bottom: 8px; }
-            .icon-badge { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; color: white; }
-            .stat-value { font-size: 18px; font-weight: 900; }
-            .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 4px; }
+            .modern-dashboard { font-family: sans-serif; background: #f4f7f6; min-height: 100vh; }
+            .loader-screen { height: 100vh; display: flex; align-items: center; justify-content: center; }
+            .header-glass { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); }
             .ca-badge { background: #1a1a1a; color: white; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
             .ca-val { font-weight: 900; font-size: 15px; }
             .ca-trend-dot { width: 8px; height: 8px; border-radius: 50%; }
             .ca-badge.is-ahead .ca-trend-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
             .ca-badge.is-behind .ca-trend-dot { background: #ff4d4f; box-shadow: 0 0 8px #ff4d4f; }
-            .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+            .refresh-btn { background: transparent; border: none; color: #666; cursor: pointer; }
+            .refresh-btn.spinning { animation: spin 1s linear infinite; }
+            @keyframes spin { 100% { transform: rotate(360deg); } }
+            .toggle-container { display: flex; margin: 10px 15px; background: #eee; border-radius: 12px; padding: 4px; }
+            .toggle-btn { flex: 1; text-align: center; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+            .toggle-btn.active { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .section-label { font-size: 12px; font-weight: 800; color: #999; margin: 20px 15px 10px; text-transform: uppercase; }
+            .global-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 10px 15px; scrollbar-width: none; }
+            .stat-card { min-width: 100px; background: white; border-radius: 20px; padding: 15px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); cursor: pointer; }
+            .stat-card.featured { background: #FF7900; color: white; }
+            .circular-wrap { width: 50px; height: 50px; margin-bottom: 8px; }
+            .icon-badge { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; color: white; }
+            .stat-value { font-size: 18px; font-weight: 900; }
+            .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 4px; }
+            .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); cursor: pointer; }
             .seller-main-info { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
             .rank-badge { width: 22px; height: 22px; background: #1a1a1a; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
             .name { font-weight: 800; font-size: 14px; }
             .basic-kpis { font-size: 11px; color: #666; }
             .seller-metrics { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-            .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; display: flex; align-items: center; gap: 3px; }
-            .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; }
+            .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; }
+            .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; font-size: 13px; }
+            .glass-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 15px; }
+            .glass-modal { background: white; border-radius: 25px; width: 100%; max-width: 500px; padding: 20px; overflow: hidden; }
+            .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+            .modal-scroll { max-height: 65vh; overflow-y: auto; padding-right: 5px; }
             .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-            .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; }
+            .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; margin-bottom: 10px; }
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
             .ticket-line span { color: #333; flex: 1; padding-right: 10px; }
-            .legend-container { background: white; margin: 0 15px 30px 15px; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
-            .legend-group { margin-bottom: 15px; }
-            .legend-group h3 { font-size: 12px; color: #FF7900; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #fff5eb; padding-bottom: 5px; }
-            .legend-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
-            .legend-item { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #444; }
-            .legend-item span { color: #666; }
-            .pill-mini { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; display: flex; align-items: center; }
-            .pill-mini.acc { background: #f0f4ff; color: #527EDB; }
-            .pill-mini.reco { background: #e6f7ed; color: #10b981; }
-            .pill-mini.cyber { background: #f5f0ff; color: #6f42c1; }
             .ro-main-stat { text-align: center; margin-bottom: 20px; }
             .ro-label { font-size: 14px; color: #666; }
             .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
-            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
             .ro-card { border: 1px solid #eee; padding: 12px; border-radius: 15px; text-align: center; }
             .ro-sublabel { font-size: 11px; color: #999; margin: 5px 0; }
             .ro-subval { font-size: 16px; font-weight: bold; }
-            .ro-footer-card { background: #f9fafb; border-radius: 15px; padding: 15px; }
-            .ro-footer-item { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
             `}</style>
             </div>
     );
