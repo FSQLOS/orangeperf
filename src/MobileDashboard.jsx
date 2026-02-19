@@ -334,7 +334,7 @@ export default function MobileDashboard({ config }) {
 
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
-            <div className="glass-modal pop-in" style={{height: 'auto', maxHeight:'85vh', width: '95%'}} onClick={e => e.stopPropagation()}>
+            <div className="glass-modal" style={{maxHeight:'85vh', width: '95%'}} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
             <h2 style={{fontSize: '16px'}}>{compareMode.category} <span style={{fontSize: '11px', opacity: 0.5}}>(Obj: {compareMode.target}{compareMode.isPercent ? '%' : ''})</span></h2>
             <X onClick={() => setCompareMode(null)} />
@@ -388,7 +388,7 @@ export default function MobileDashboard({ config }) {
 
         {caModal && (
             <div className="glass-overlay" onClick={() => setCaModal(false)}>
-            <div className="glass-modal pop-in" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
+            <div className="glass-modal" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
             <div className="modal-header"><h2>Performance Boutique</h2><X onClick={() => setCaModal(false)} /></div>
             <div className="ro-container">
             <div className="ro-main-stat">
@@ -406,7 +406,7 @@ export default function MobileDashboard({ config }) {
 
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
-            <div className="glass-modal pop-in" onClick={e => e.stopPropagation()}>
+            <div className="glass-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header"><h2>{selectedSeller.name}</h2><X onClick={() => setSelectedSeller(null)} /></div>
             <div className="modal-scroll">
             {Object.entries(selectedSeller.data.tickets).reverse().map(([id, ticket]) => (
@@ -419,7 +419,10 @@ export default function MobileDashboard({ config }) {
                         <div key={famKey} style={{marginBottom: '10px'}}>
                         <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px'}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
-                            <div key={idx} className="ticket-line"><span>{item.lib}</span><strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong></div>
+                            <div key={idx} className="ticket-line">
+                            <span>{item.lib}</span>
+                            <strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong>
+                            </div>
                         ))}
                         </div>
                     )
@@ -455,7 +458,6 @@ export default function MobileDashboard({ config }) {
             .stat-value { font-size: 18px; font-weight: 900; }
             .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 4px; }
             .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); cursor: pointer; }
-            .seller-main-info { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
             .rank-badge { width: 22px; height: 22px; background: #1a1a1a; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
             .name { font-weight: 800; font-size: 14px; }
             .basic-kpis { font-size: 11px; color: #666; }
