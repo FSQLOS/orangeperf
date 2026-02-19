@@ -147,7 +147,6 @@ export default function MobileDashboard({ config }) {
 
                 const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
                 const isParafoudre = lib.includes("PARAFOUDRE") || lib.includes("MULTIPRISE");
-                const isForfait = lib.includes("FORFAIT") || lib.includes("OPEN") || lib.includes("SERIE") || lib.includes("INIT");
                 const isPret = lib.includes("PRET");
                 const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
 
@@ -223,7 +222,9 @@ export default function MobileDashboard({ config }) {
         const chartData = Object.keys(currentStats).map(code => {
             const s = currentStats[code];
             let done = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
-            let remaining = Math.max(0, indivTarget - done);
+            // Reste à faire à 0 pour Taux Assur
+            let remaining = (category === 'TxAssur') ? 0 : Math.max(0, indivTarget - done);
+
             return {
                 name: teamMap[code] || code,
                 done,
@@ -232,7 +233,13 @@ export default function MobileDashboard({ config }) {
             };
         }).sort((a, b) => b.done - a.done);
 
-        setCompareMode({ category, data: chartData, isPercent: category === 'TxAssur', target: indivTarget });
+        setCompareMode({
+            category,
+            data: chartData,
+            isPercent: category === 'TxAssur',
+            target: indivTarget,
+            isAssur: category === 'TxAssur'
+        });
     };
 
     const currentStats = viewMode === 'month' ? statsMonth : statsDay;
@@ -256,6 +263,7 @@ export default function MobileDashboard({ config }) {
     const prorataTarget = Math.round(objTotalCA * mInfo.pct);
     const diffCA = Math.round(globalData.ca - prorataTarget);
     const isAhead = diffCA >= 0;
+    const landingCA = mInfo.now > 0 ? Math.round(globalData.ca / mInfo.now * mInfo.total) : 0;
 
     if (loading) return <div className="loader-screen">Chargement...</div>;
 
@@ -266,7 +274,8 @@ export default function MobileDashboard({ config }) {
         <div className="subtitle">Orange Boutique</div>
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
-        <div className={`ca-badge ${isAhead ? 'is-ahead' : 'is-behind'}`} onClick={() => setCaModal(true)} style={{cursor:'pointer'}}>
+        {/* Badge CA Boutique Restauré */}
+        <div className={`ca-badge ${isAhead ? 'is-ahead' : 'is-behind'}`} onClick={() => setCaModal(true)}>
         <div className="ca-trend-dot"></div>
         <div className="ca-val">{Math.round(globalData.ca)}€</div>
         </div>
@@ -291,7 +300,7 @@ export default function MobileDashboard({ config }) {
             const style = getCategoryStyle(key);
             const count = viewMode === 'month' ? (globalData.counts[key] || 0) : Object.values(currentStats).reduce((acc, s) => acc + (s[key] || 0), 0);
             const obj = config?.objectifs?.[key] || 0;
-            const displayVal = obj > 0 && viewMode === 'month' ? `${count} / ${obj}` : count;
+            const displayVal = (obj > 0 && viewMode === 'month') ? `${count} / ${obj}` : count;
 
             return (
                 <div key={key} className="stat-card" onClick={() => openGlobalComparison(key)}>
@@ -335,6 +344,7 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
+        {/* MODAL COMPARAISON (Graphiques) */}
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
             <div className="glass-modal" style={{width: '95%', maxWidth: '500px'}} onClick={e => e.stopPropagation()}>
@@ -353,16 +363,23 @@ export default function MobileDashboard({ config }) {
                          backgroundColor: compareMode.data.map(d => d.color),
                          borderRadius: 6,
                          barThickness: 20,
-                         datalabels: { anchor: 'center', align: 'center', color: '#fff', font: { weight: '900', size: 11 } }
+                         datalabels: {
+                             anchor: compareMode.isAssur ? 'end' : 'center',
+                             align: compareMode.isAssur ? 'right' : 'center',
+                             color: compareMode.isAssur ? '#1a1a1a' : '#fff',
+                             font: { weight: '900', size: 11 },
+                             offset: compareMode.isAssur ? 8 : 0
+                         }
                              },
-                             {
+                             // On n'affiche le dataset "Reste" que si ce n'est pas Taux Assur
+                             ...(!compareMode.isAssur ? [{
                                  label: 'Reste',
                                  data: compareMode.data.map(d => d.remaining),
-                         backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                         borderRadius: 6,
-                         barThickness: 20,
-                         datalabels: { anchor: 'end', align: 'right', color: '#1a1a1a', offset: 8, font: { weight: 'bold', size: 12 } }
-                             }
+                                 backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                                 borderRadius: 6,
+                                 barThickness: 20,
+                                 datalabels: { anchor: 'end', align: 'right', color: '#1a1a1a', offset: 8, font: { weight: 'bold', size: 12 } }
+                             }] : [])
                          ]
             }}
             options={{
@@ -373,14 +390,14 @@ export default function MobileDashboard({ config }) {
                     datalabels: {
                         clip: false,
                         formatter: (value, context) => {
-                            if (context.datasetIndex === 0) return value > 0 ? value + (compareMode.isPercent ? '%' : '') : '';
-        return value > 0 ? "(-" + value + ")" : "✅";
+                            if (context.datasetIndex === 0) return value + (compareMode.isPercent ? '%' : '');
+                            return value > 0 ? "(-" + value + ")" : "✅";
                         }
                     }
                 },
                 scales: {
-                    x: { stacked: true, display: false, beginAtZero: true, suggestedMax: Math.max(...compareMode.data.map(d => d.done + d.remaining)) * 1.2 },
-                         y: { stacked: true, grid: { display: false }, ticks: { autoSkip: false, font: { size: 12, weight: 'bold' } } }
+                    x: { stacked: !compareMode.isAssur, display: false, beginAtZero: true, suggestedMax: Math.max(...compareMode.data.map(d => d.done + (compareMode.isAssur ? 0 : d.remaining))) * 1.2 },
+                         y: { stacked: !compareMode.isAssur, grid: { display: false }, ticks: { autoSkip: false, font: { size: 12, weight: 'bold' } } }
                 }
             }}
             />
@@ -389,6 +406,38 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
+        {/* MODAL PERFORMANCE BOUTIQUE (R/O) - DESIGN ORIGINAL RESTAURÉ */}
+        {caModal && (
+            <div className="glass-overlay" onClick={() => setCaModal(false)}>
+            <div className="glass-modal" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
+            <div className="modal-header"><h2>Performance Boutique</h2><X onClick={() => setCaModal(false)} /></div>
+            <div className="ro-container">
+            <div className="ro-main-stat">
+            <div className="ro-label">Réalisé au {mInfo.now} du mois</div>
+            <div className="ro-value">{Math.round(globalData.ca)} €</div>
+            </div>
+            <div className="ro-grid">
+            <div className="ro-card">
+            <div className="ro-icon"><Target size={18} color="#666"/></div>
+            <div className="ro-sublabel">Objectif Prorata</div>
+            <div className="ro-subval">{prorataTarget} €</div>
+            </div>
+            <div className="ro-card" style={{borderColor: isAhead ? '#10b981' : '#ef4444'}}>
+            <div className="ro-icon">{isAhead ? <TrendingUp size={18} color="#10b981"/> : <TrendingDown size={18} color="#ef4444"/>}</div>
+            <div className="ro-sublabel">Écart R/O</div>
+            <div className="ro-subval" style={{color: isAhead ? '#10b981' : '#ef4444'}}>{isAhead ? '+' : ''}{diffCA} €</div>
+            </div>
+            </div>
+            <div className="ro-footer-card">
+            <div className="ro-footer-item"><span>Objectif Total Mois</span><strong>{objTotalCA} €</strong></div>
+            <div className="ro-footer-item"><span>Atterrissage estimé</span><strong style={{color: landingCA >= objTotalCA ? '#10b981' : '#f59e0b'}}>{landingCA} €</strong></div>
+            </div>
+            </div>
+            </div>
+            </div>
+        )}
+
+        {/* MODAL TICKETS VENDEUR */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal" onClick={e => e.stopPropagation()}>
@@ -423,7 +472,7 @@ export default function MobileDashboard({ config }) {
             .modern-dashboard { font-family: sans-serif; background: #f4f7f6; min-height: 100vh; margin: 0; padding: 0; }
             .loader-screen { height: 100vh; display: flex; align-items: center; justify-content: center; }
             .header-glass { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); }
-            .ca-badge { background: #1a1a1a; color: white; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
+            .ca-badge { background: #1a1a1a; color: white; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; z-index: 10; }
             .ca-val { font-weight: 900; font-size: 15px; }
             .ca-trend-dot { width: 8px; height: 8px; border-radius: 50%; }
             .ca-badge.is-ahead .ca-trend-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
@@ -450,20 +499,8 @@ export default function MobileDashboard({ config }) {
             .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; }
             .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; font-size: 13px; }
 
-            .glass-overlay {
-                position: fixed; inset: 0;
-                background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-                z-index: 2000;
-                display: flex; align-items: center; justify-content: center;
-                padding: 15px;
-            }
-            .glass-modal {
-                background: white; border-radius: 25px;
-                width: 100%; max-width: 500px;
-                padding: 20px;
-                box-sizing: border-box;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            }
+            .glass-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 15px; }
+            .glass-modal { background: white; border-radius: 25px; width: 100%; max-width: 500px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }
             .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%; }
             .modal-scroll { max-height: 60vh; overflow-y: auto; width: 100%; }
             .ticket-group-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; border: 1px solid #eee; }
@@ -471,8 +508,15 @@ export default function MobileDashboard({ config }) {
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
             .ticket-line span { color: #333; flex: 1; padding-right: 10px; text-align: left; }
 
-            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
+            .ro-main-stat { text-align: center; margin-bottom: 20px; }
+            .ro-label { font-size: 14px; color: #666; }
+            .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
+            .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
             .ro-card { border: 1px solid #eee; padding: 12px; border-radius: 15px; text-align: center; }
+            .ro-sublabel { font-size: 11px; color: #999; margin: 5px 0; }
+            .ro-subval { font-size: 16px; font-weight: bold; }
+            .ro-footer-card { background: #f9fafb; border-radius: 15px; padding: 15px; }
+            .ro-footer-item { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
             `}</style>
             </div>
     );
