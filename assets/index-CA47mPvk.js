@@ -48,7 +48,7 @@ import{C as ye,a as Pe,L as Le,B as Fe,p as De,b as we,c as ke,d as Ue,r as b,j 
             .ro-subval { font-size: 16px; font-weight: bold; }
             .ro-footer-card { background: #f9fafb; border-radius: 15px; padding: 15px; }
             .ro-footer-item { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
-            `})]})}const ns={url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vRQhU0168lFGtFdLX0oqNU6r9Dy87d_mW7zeSJ2LVrf_I87RxC4SbLFZiXSJcaQa8rRvuxDN8kmH0iF/pub?output=csv",objectifs:{CA:21760,Terminaux:312,Mobile:127,Broadband:69,MIG:101,MEV:57,Cyber:27,MP:11,Assurance:42},team:`
+            `})]})}const ns={url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vRQhU0168lFGtFdLX0oqNU6r9Dy87d_mW7zeSJ2LVrf_I87RxC4SbLFZiXSJcaQa8rRvuxDN8kmH0iF/pub?output=csv",objectifs:{CA:23326,Terminaux:279,Mobile:114,Broadband:74,MIG:109,MEV:51,Cyber:27,MP:11,Assurance:42},team:`
     00017561 : Johan
     00015162 : Emre
     00016295 : Irvan
