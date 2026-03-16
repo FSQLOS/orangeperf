@@ -123,15 +123,32 @@ export default function MobileDashboard({ config }) {
         });
 
         let g_CA = 0, g_Term = 0, g_Assur = 0, g_Counts = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0 };
+        
+        // MODIFICATION ICI : Logique de date renforcée
         const d = new Date();
-        const todayFormats = [`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, `${d.getDate()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`];
+        const currentMonth = d.getMonth() + 1;
+        const currentYear = d.getFullYear();
 
         data.forEach(row => {
             let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
-            let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
-            if (!rowDate) return;
+            let rowDateStr = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
+            if (!rowDateStr) return;
+
+            // Détection du format (DD/MM/YYYY ou YYYY-MM-DD)
+            let parts = rowDateStr.includes('/') ? rowDateStr.split('/') : rowDateStr.split('-');
+            let day, month, year;
+
+            if (parts[0].length === 4) { // Format YYYY-MM-DD
+                year = parseInt(parts[0]); month = parseInt(parts[1]); day = parseInt(parts[2]);
+            } else { // Format DD/MM/YYYY
+                day = parseInt(parts[0]); month = parseInt(parts[1]); year = parseInt(parts[2]);
+            }
+
+            // On ne garde que le mois en cours
+            if (month !== currentMonth || year !== currentYear) return;
+
+            let isToday = (day === d.getDate() && month === currentMonth && year === currentYear);
             let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
-            let isToday = todayFormats.some(f => rowDate.includes(f));
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
             let v = teamCodes.find(code => vRaw.includes(code));
 
@@ -172,7 +189,7 @@ export default function MobileDashboard({ config }) {
 
                 tMonth[v].CA += ht;
                 g_CA += ht;
-                if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
+                if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDateStr, items: [] };
 
                 const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0 };
                 tMonth[v].tickets[ticketId].items.push(article);
@@ -222,7 +239,6 @@ export default function MobileDashboard({ config }) {
         const chartData = Object.keys(currentStats).map(code => {
             const s = currentStats[code];
             let done = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
-            // Reste à faire à 0 pour Taux Assur
             let remaining = (category === 'TxAssur') ? 0 : Math.max(0, indivTarget - done);
 
             return {
@@ -274,7 +290,6 @@ export default function MobileDashboard({ config }) {
         <div className="subtitle">Orange Boutique</div>
         <div className="title">Vision <span>{viewMode === 'month' ? 'Mois' : 'Jour'}</span></div>
         </div>
-        {/* Badge CA Boutique Restauré */}
         <div className={`ca-badge ${isAhead ? 'is-ahead' : 'is-behind'}`} onClick={() => setCaModal(true)}>
         <div className="ca-trend-dot"></div>
         <div className="ca-val">{Math.round(globalData.ca)}€</div>
@@ -344,7 +359,7 @@ export default function MobileDashboard({ config }) {
         </div>
         </div>
 
-        {/* MODAL COMPARAISON (Graphiques) */}
+        {/* MODALS (Comparison, CA, Tickets) - Identiques à ta version précédente */}
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
             <div className="glass-modal" style={{width: '95%', maxWidth: '500px'}} onClick={e => e.stopPropagation()}>
@@ -371,7 +386,6 @@ export default function MobileDashboard({ config }) {
                              offset: compareMode.isAssur ? 8 : 0
                          }
                              },
-                             // On n'affiche le dataset "Reste" que si ce n'est pas Taux Assur
                              ...(!compareMode.isAssur ? [{
                                  label: 'Reste',
                                  data: compareMode.data.map(d => d.remaining),
@@ -406,7 +420,6 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        {/* MODAL PERFORMANCE BOUTIQUE (R/O) - DESIGN ORIGINAL RESTAURÉ */}
         {caModal && (
             <div className="glass-overlay" onClick={() => setCaModal(false)}>
             <div className="glass-modal" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
@@ -437,7 +450,6 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
-        {/* MODAL TICKETS VENDEUR */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal" onClick={e => e.stopPropagation()}>
