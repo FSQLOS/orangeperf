@@ -95,14 +95,30 @@ export default function MobileDashboard({ config }) {
     const fetchData = () => {
         if (!config?.url) return;
         setRefreshing(true);
+        
+        // On ajoute un timestamp pour éviter le cache, mais on attaque Google DIRECTEMENT
         const t = new Date().getTime();
-        const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
+        const finalUrl = config.url + "&t=" + t; 
+
         fetch(finalUrl)
-        .then(r => r.text())
-        .then(t => {
-            Papa.parse(t, { header: true, skipEmptyLines: true, complete: r => { processData(r.data); setRefreshing(false); } });
+        .then(r => {
+            if (!r.ok) throw new Error('Erreur réseau');
+            return r.text();
         })
-        .catch(() => setRefreshing(false));
+        .then(t => {
+            Papa.parse(t, { 
+                header: true, 
+                skipEmptyLines: true, 
+                complete: r => { 
+                    processData(r.data); 
+                    setRefreshing(false); 
+                } 
+            });
+        })
+        .catch((err) => {
+            console.error("Erreur de chargement :", err);
+            setRefreshing(false);
+        });
     };
 
     useEffect(() => { fetchData(); }, [config?.url]);
