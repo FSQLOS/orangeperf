@@ -16,9 +16,11 @@
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
     "chartjs-plugin-datalabels": "^2.2.0",
+    "lucide-react": "^0.577.0",
     "papaparse": "^5.5.3",
     "react": "^19.2.0",
     "react-chartjs-2": "^5.3.1",
+    "react-circular-progressbar": "^2.2.0",
     "react-dom": "^19.2.0",
     "xlsx": "^0.18.5"
   },
