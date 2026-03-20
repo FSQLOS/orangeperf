@@ -134,6 +134,7 @@ export default function MobileDashboard({ config }) {
         // Ordre important : BUDS, CASQUE, SMARTTAG avant SAMSUNG/XIAOMI/HONOR
         if (
             l.includes("CHARGEUR") || l.includes("CABLE") ||
+            l.startsWith("CS ") ||            // CS BELKIN, CS FORCE POWER (chargeurs secteur)
             l.includes("KIT PIETON") || l.includes("POWERBANK") ||
             l.includes("AUDIO") || l.includes("ENCEINTE") ||
             l.includes("AIRPODS") || l.includes("BANDOULIERE") ||
