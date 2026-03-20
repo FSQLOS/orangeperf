@@ -155,13 +155,12 @@ export default function MobileDashboard({ config }) {
             l.includes("SMARTTAG") ||
             l.includes("TRACKER") ||
             l.includes("TAG") ||
-            l.includes("M/L") ||
-            l.includes("USB")
+            l.includes("M/L")
         ) return "ACC";
 
         // ── Services / Assurance ─────────────────────────────────────────
         if (l.includes("ASSURANCE") || CODES.Assurance.includes(code)) return "SERV";
-        if (l.includes("CYBER") || CODES.Cyber.includes(code) || l.includes("MP")) return "HOME";
+        if (l.includes("CYBER") || CODES.Cyber.includes(code) || CODES.MP.includes(code)) return "HOME";
 
         // ── Transferts ───────────────────────────────────────────────────
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
