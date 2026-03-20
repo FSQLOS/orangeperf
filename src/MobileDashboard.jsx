@@ -268,12 +268,13 @@ export default function MobileDashboard({ config }) {
 
                 // ── Détection terminal ──────────────────────────────────
                 let isTerm = !isPret &&
+                    fam !== "PROT" &&
+                    fam !== "ACC" &&
+                    fam !== "ACC_HOME" &&
                     (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k))) &&
                     !KEY_NOT_TERM.some(k => lib.includes(k)) &&
                     !isWatch &&
-                    !lib.includes("COQUE") && !lib.includes("ETUI") &&
-                    !lib.includes("PROTECTION") &&
-                    !lib.includes("ALCATEL") &&      // téléphones fixes → ACC_HOME
+                    !lib.includes("ALCATEL") &&
                     absVal > 15 &&
                     !isPret;
 
