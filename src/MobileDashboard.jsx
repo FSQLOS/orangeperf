@@ -316,7 +316,7 @@ export default function MobileDashboard({ config }) {
                     tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
                 }
 
-                const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0 };
+                const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0, isReco };
                 tMonth[v].tickets[ticketId].items.push(article);
 
                 const updateStat = (key, val = modifier) => {
@@ -498,7 +498,7 @@ export default function MobileDashboard({ config }) {
                 </div>
                 <div className="seller-metrics">
                 <div className="metric-pill acc">ACC {attachRate}</div>
-                <div className="metric-pill reco"><Leaf size={10}/> {tauxReco}%</div>
+                <div className="metric-pill reco"><Leaf size={10}/> {tauxReco}% ({s.Reco})</div>
                 <div className="metric-pill cyber"><Shield size={10}/> {tauxCyber}%</div>
                 <div className="ca-box"><strong>{Math.round(s.CA)}€</strong> <ChevronRight size={14} color="#FF7900" /></div>
                 </div>
@@ -623,7 +623,7 @@ export default function MobileDashboard({ config }) {
                         <div style={{fontSize: '10px', fontWeight: 'bold', color: famInfo.color, marginBottom: '4px'}}>{famInfo.label}</div>
                         {itemsInFam.map((item, idx) => (
                             <div key={idx} className="ticket-line">
-                            <span>{item.lib}</span>
+                            <span>{item.lib} {item.isReco && <span className="reco-badge">♻️ REC</span>}</span>
                             <strong>{item.ca > 0 ? Math.round(item.ca)+'€' : ''}</strong>
                             </div>
                         ))}
@@ -676,6 +676,7 @@ export default function MobileDashboard({ config }) {
             .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; margin-bottom: 10px; }
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
             .ticket-line span { color: #333; flex: 1; padding-right: 10px; text-align: left; }
+            .reco-badge { background: #d1fae5; color: #065f46; font-size: 9px; font-weight: bold; padding: 1px 5px; border-radius: 4px; margin-left: 5px; vertical-align: middle; }
             .ro-main-stat { text-align: center; margin-bottom: 20px; }
             .ro-label { font-size: 14px; color: #666; }
             .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
