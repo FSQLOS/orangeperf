@@ -40,9 +40,11 @@ export default function MobileDashboard({ config }) {
         XIAOMI: { label: "📱 XIAOMI", color: "#FF6700" },
         HONOR: { label: "📱 HONOR", color: "#FF6800" },
         CROSSCALL: { label: "📱 CROSSCALL", color: "#FF6900" },
-        GOOGLE: { label: "📱 GOOGLE", color: "#FF7000" },
+        GOOGLE: { label: "📱 GOOGLE", color: "#4285F4" },
+        MOTOROLA: { label: "📱 MOTOROLA", color: "#5C6BC0" },
         PROT: { label: "🛡️ PROTECTION", color: "#059669" },
         ACC: { label: "🎧 ACCESSOIRES", color: "#4b5563" },
+        ACC_HOME: { label: "🏠 ACC. DOMICILE", color: "#9ca3af" },
         TRANSFERTS: { label: "📲 TRANSFERTS", color: "#4F46E5" },
         SERV: { label: "✨ SERVICES / ASSUR", color: "#FF7900" },
         AUTRE: { label: "📦 DIVERS", color: "#9ca3af" }
@@ -53,13 +55,52 @@ export default function MobileDashboard({ config }) {
         Mobile: [805315, 805311, 805307, 805278, 805277, 805276, 805261, 805260, 805259, 805234, 805233, 805232, 805110, 805104, 805103, 805102, 805081, 805070, 805068, 805064, 805063, 805062, 805061, 805055, 804287, 804285, 804283, 804266, 804210],
         MIG: [805226, 805228, 805227, 804608, 805243, 805242, 805235, 805241, 804610, 805225, 805224, 805223],
         MEV: [801692], MP: [804411, 804410], Cyber: [805159],
+        // 804460 = ASSU LIGNE PRO 12E et 804891 = ASSU LIGNE PRO 17E exclus volontairement
+        // car on ne les compte pas dans le taux assurance
         Assurance: [801410, 801413, 805121, 801411, 805120, 801412, 805118, 805119, 805122, 803105]
     };
 
+    // Mots-clés de stockage — inchangés
     const KEY_STOCKAGE = ["128 GO", "128GO", "256 GO", "256GO", "512 GO", "512GO", "1 TO", "1TO", "64 GO", "64GO", "32 GO", "32GO"];
-    const KEY_MODELE = ["L30", "WIRE", "15C", "REDMI", "X5C", "A15", "A25", "A35", "A55", "REDMI NOTE", "CROSSCALL STELLAR"];
-    const KEY_NOT_TERM = ["DBRAMENTE", "PRET", "DBRAMANTE", "KIT PIETON", "FOLIO", "COQUE", "VT", "QDOS", "PROTECTION", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR", "PRISE", "ECOUTEUR", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER", "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK", "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD", "SSD", "SDXC", "MICROSD", "DRIVE", "TW"];
-    const BLACKLIST_CA = ["FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MONO", "MULTIPRISE", "PILE", "SAC", "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE", "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH"];
+
+    // KEY_MODELE étendu : tous les modèles mobiles vus dans les données réelles
+    const KEY_MODELE = [
+        // Apple
+        "IPHONE",
+        // Samsung
+        "GALAXY A", "GALAXY S", "GALAXY Z", "GLXY", "GLKY", "S25 FE",
+        // Xiaomi
+        "XIAOMI 17", "XIAOMI 15T", "REDMI NOTE", "REDMI A", "X5C",
+        // Doro
+        "L30", "WIRE",
+        // Honor
+        "HONOR MAGIC", "HONOR 400", "HONOR X",
+        // Google Pixel
+        "GOOGLE PIXEL",
+        // Motorola
+        "MOTOROLA", "MOTO G",
+        // Crosscall
+        "CROSSCALL STELLAR",
+        // Anciens modèles déjà présents
+        "15C", "A15", "A25", "A35", "A55", "REDMI NOTE"
+    ];
+
+    const KEY_NOT_TERM = [
+        "DBRAMENTE", "PRET", "DBRAMANTE", "KIT PIETON", "FOLIO", "COQUE", "VT", "QDOS",
+        "PROTECTION", "ETUI", "VERRE", "FILM", "PROT", "CHARGEUR", "CABLE", "ADAPTATEUR",
+        "PRISE", "ECOUTEUR", "AUDIO", "BUDS", "AIRPODS", "FREEBUDS", "ENCEINTE", "SPEAKER",
+        "SOUND", "MONTRE", "BRACELET", "WATCH", "BAND", "GALAXY FIT", "SUPPORT", "PACK",
+        "LANIERE", "TAG", "TRACKER", "CLE", "USB", "CARTE", "MEMOIRE", "DISQUE", "HDD",
+        "SSD", "SDXC", "MICROSD", "DRIVE", "TW", "CASQUE", "POWERBANK", "BASE SECTEUR",
+        "PAD INDUCTION", "SMARTTAG"
+    ];
+
+    const BLACKLIST_CA = [
+        "FIXE", "DECT", "GIGASET", "PARAFOUDRE", "MONO", "MULTIPRISE", "PILE", "SAC",
+        "KRAFT", "CONFIGURATION", "ATELIER", "FLASH", "EXPERTE", "TIMBRE", "PLANCHE",
+        "PHOTO", "IDENTITE", "MOBICARTE", "E-RECH", "ALCATEL"
+    ];
+
     const EXCLUDED_PRICES = [9, 24, 39];
 
     const getMonthInfo = () => {
@@ -71,16 +112,64 @@ export default function MobileDashboard({ config }) {
 
     const getFamily = (lib, code) => {
         const l = lib.toUpperCase();
-        if (l.includes("PARAFOUDRE") || l.includes("MULTIPRISE")) return "AUTRE";
+
+        // ── Exclusions immédiates ──────────────────────────────────────────
         if (l.includes("PRET")) return "PRET";
-        if (l.includes("COQUE") || l.includes("ETUI") || l.includes("FOLIO") || l.includes("DBRAMENTE") || l.includes("DBRAMANTE") || l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") || l.includes("CAMERA LENS") || l.includes("FORCE GLASS") || l.includes("VT") || l.includes("QDOS") || l.includes("FORCE CASE")) return "PROT";
-        if (l.includes("CHARGEUR") || l.includes("CABLE") || l.includes("KIT PIETON") || l.includes("BRACELET") || l.includes("POWERBANK") || l.includes("AUDIO") || l.includes("ENCEINTE") || l.includes("AIRPODS") || l.includes("BANDOULIERE") || l.includes("BUDS") || l.includes("TW") || l.includes("MONTRE") || l.includes("WATCH") || l.includes("M/L") || l.includes("USB") || l.includes("SUPPORT") || l.includes("SPRAY") || l.includes("RECHARGE FORCE")) return "ACC";
+
+        // ── ACC_HOME : accessoires domicile — ne comptent PAS dans nbAcc mobile
+        if (l.includes("PARAFOUDRE") || l.includes("MULTIPRISE")) return "ACC_HOME";
+        if (l.includes("ALCATEL")) return "ACC_HOME";
+
+        // ── PROT : protections mobile ─────────────────────────────────────
+        if (
+            l.includes("COQUE") || l.includes("ETUI") || l.includes("FOLIO") ||
+            l.includes("DBRAMENTE") || l.includes("DBRAMANTE") ||
+            l.includes("VERRE") || l.includes("FILM") || l.includes("PROT") ||
+            l.includes("CAMERA LENS") || l.includes("FORCE GLASS") ||
+            l.includes("VT") || l.includes("QDOS") ||
+            l.includes("FORCE CASE") || l.includes("AOD PROTECTION")
+        ) return "PROT";
+
+        // ── ACC : accessoires mobile — AVANT les règles marques ──────────
+        // Ordre important : BUDS, CASQUE, SMARTTAG avant SAMSUNG/XIAOMI/HONOR
+        if (
+            l.includes("CHARGEUR") || l.includes("CABLE") ||
+            l.includes("KIT PIETON") || l.includes("POWERBANK") ||
+            l.includes("AUDIO") || l.includes("ENCEINTE") ||
+            l.includes("AIRPODS") || l.includes("BANDOULIERE") ||
+            l.includes("BUDS") ||          // GALAXY BUDS, REDMI BUDS, etc.
+            l.includes("CASQUE") ||        // SHOKZ, etc.
+            l.includes("FREEBUDS") ||
+            l.includes("TW") ||
+            l.includes("MONTRE") ||
+            l.includes("WATCH") ||         // Apple Watch, Galaxy Watch
+            l.includes("BAND") ||
+            l.includes("GALAXY FIT") ||
+            l.includes("SUPPORT") ||
+            l.includes("SPRAY") ||
+            l.includes("RECHARGE FORCE") ||
+            l.includes("RECHARGE SPRAY") ||
+            l.includes("BASE SECTEUR") ||
+            l.includes("PAD INDUCTION") ||
+            l.includes("SMARTTAG") ||
+            l.includes("TRACKER") ||
+            l.includes("TAG") ||
+            l.includes("M/L") ||
+            l.includes("USB")
+        ) return "ACC";
+
+        // ── Services / Assurance ─────────────────────────────────────────
         if (l.includes("ASSURANCE") || CODES.Assurance.includes(code)) return "SERV";
         if (l.includes("CYBER") || CODES.Cyber.includes(code) || l.includes("MP")) return "HOME";
+
+        // ── Transferts ───────────────────────────────────────────────────
         if (l.includes("FLASH") || l.includes("EXPERTE") || l.includes("ATELIER")) return "TRANSFERTS";
+
+        // ── Forfaits / Box ───────────────────────────────────────────────
         if (CODES.Broadband.includes(code)) return "BOX";
         if (CODES.Mobile.includes(code)) return "FORFAIT";
 
+        // ── Terminaux — marques ──────────────────────────────────────────
         if (l.includes("IPHONE") || l.includes("APPLE")) return "APPLE";
         if (l.includes("SAMSUNG") || l.includes("GALAXY")) return "SAMSUNG";
         if (l.includes("DORO")) return "DORO";
@@ -88,6 +177,7 @@ export default function MobileDashboard({ config }) {
         if (l.includes("HONOR")) return "HONOR";
         if (l.includes("CROSSCALL") || l.includes("STELLAR")) return "CROSSCALL";
         if (l.includes("GOOGLE PIXEL")) return "GOOGLE";
+        if (l.includes("MOTOROLA") || l.includes("MOTO G")) return "MOTOROLA";
 
         return "AUTRE";
     };
@@ -95,30 +185,14 @@ export default function MobileDashboard({ config }) {
     const fetchData = () => {
         if (!config?.url) return;
         setRefreshing(true);
-        
-        // On ajoute un timestamp pour éviter le cache, mais on attaque Google DIRECTEMENT
         const t = new Date().getTime();
-        const finalUrl = config.url + "&t=" + t; 
-
+        const finalUrl = "https://corsproxy.io/?" + encodeURIComponent(config.url + "&t=" + t);
         fetch(finalUrl)
-        .then(r => {
-            if (!r.ok) throw new Error('Erreur réseau');
-            return r.text();
-        })
+        .then(r => r.text())
         .then(t => {
-            Papa.parse(t, { 
-                header: true, 
-                skipEmptyLines: true, 
-                complete: r => { 
-                    processData(r.data); 
-                    setRefreshing(false); 
-                } 
-            });
+            Papa.parse(t, { header: true, skipEmptyLines: true, complete: r => { processData(r.data); setRefreshing(false); } });
         })
-        .catch((err) => {
-            console.error("Erreur de chargement :", err);
-            setRefreshing(false);
-        });
+        .catch(() => setRefreshing(false));
     };
 
     useEffect(() => { fetchData(); }, [config?.url]);
@@ -126,86 +200,119 @@ export default function MobileDashboard({ config }) {
     const processData = (data) => {
         let currentTeamMap = {};
         if (config?.team) {
-            config.team.trim().split('\n').forEach(line => { if (line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); } });
+            config.team.trim().split('\n').forEach(line => {
+                if (line.includes(':')) { const [c, n] = line.split(':'); currentTeamMap[c.trim()] = n.trim(); }
+            });
         }
         setTeamMap(currentTeamMap);
         const teamCodes = Object.keys(currentTeamMap);
         let tMonth = {}, tDay = {};
 
         teamCodes.forEach(code => {
-            const empty = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0, CA: 0, nbAcc: 0, tickets: {} };
+            const empty = {
+                Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0,
+                Reco: 0, Cyber: 0, MP: 0, Assurance: 0, CA: 0, nbAcc: 0, tickets: {}
+            };
             tMonth[code] = JSON.parse(JSON.stringify(empty));
             tDay[code] = JSON.parse(JSON.stringify(empty));
         });
 
-        let g_CA = 0, g_Term = 0, g_Assur = 0, g_Counts = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0 };
-        
-        // MODIFICATION ICI : Logique de date renforcée
+        let g_CA = 0, g_Term = 0, g_Assur = 0;
+        let g_Counts = { Broadband: 0, Mobile: 0, MIG: 0, MEV: 0, Terminaux: 0, Reco: 0, Cyber: 0, MP: 0, Assurance: 0 };
+
         const d = new Date();
-        const currentMonth = d.getMonth() + 1;
-        const currentYear = d.getFullYear();
+        const todayFormats = [
+            `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`,
+            `${d.getDate()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`
+        ];
 
         data.forEach(row => {
-            let cleanRow = {}; Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
-            let rowDateStr = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
-            if (!rowDateStr) return;
+            let cleanRow = {};
+            Object.keys(row).forEach(k => cleanRow[k.trim()] = row[k]);
 
-            // Détection du format (DD/MM/YYYY ou YYYY-MM-DD)
-            let parts = rowDateStr.includes('/') ? rowDateStr.split('/') : rowDateStr.split('-');
-            let day, month, year;
+            let rowDate = (cleanRow["Date"] || cleanRow["Date de pièce"] || cleanRow["Date Facture"] || "").toString();
+            if (!rowDate) return;
 
-            if (parts[0].length === 4) { // Format YYYY-MM-DD
-                year = parseInt(parts[0]); month = parseInt(parts[1]); day = parseInt(parts[2]);
-            } else { // Format DD/MM/YYYY
-                day = parseInt(parts[0]); month = parseInt(parts[1]); year = parseInt(parts[2]);
-            }
-
-            // On ne garde que le mois en cours
-            if (month !== currentMonth || year !== currentYear) return;
-
-            let isToday = (day === d.getDate() && month === currentMonth && year === currentYear);
             let ticketId = cleanRow["Ticket"] || cleanRow["N° Ticket"] || "SANS_TICKET";
+            let isToday = todayFormats.some(f => rowDate.includes(f));
             let vRaw = (cleanRow["Vendeur Doc."] || "").toString().toUpperCase();
             let v = teamCodes.find(code => vRaw.includes(code));
 
             if (v) {
                 let codeArt = parseInt(cleanRow["Code Article"]);
                 let lib = (cleanRow["Libellé Article"] || "").toString().toUpperCase().trim();
-                let caVal = parseFloat((cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
+                let caVal = parseFloat(
+                    (cleanRow["Montant TTC"] || "0").toString().replace(/[^0-9,.-]/g, '').replace(',', '.')
+                ) || 0;
+
+                // Ignorer les lignes WP (cartes SIM / waveplaces)
                 if (lib.startsWith("WP")) return;
 
                 const isRefund = caVal < 0;
                 const absVal = Math.abs(caVal);
                 const modifier = isRefund ? -1 : 1;
 
-                const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") || lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
+                const isWatch = lib.includes("WATCH") || lib.includes("MONTRE") ||
+                                lib.includes("GALAXY FIT") || lib.includes("APPLE WATCH");
                 const isParafoudre = lib.includes("PARAFOUDRE") || lib.includes("MULTIPRISE");
                 const isPret = lib.includes("PRET");
-                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") || lib.includes("ATELIER") || lib.includes("TRANSFERT") || lib.includes("CONFIGURATION");
+                const isTransfert = lib.includes("FLASH") || lib.includes("EXPERTE") ||
+                                    lib.includes("ATELIER") || lib.includes("TRANSFERT") ||
+                                    lib.includes("CONFIGURATION");
 
                 const isLabelBlacklisted = BLACKLIST_CA.some(w => lib.includes(w));
                 const isPriceExcluded = EXCLUDED_PRICES.includes(absVal);
 
                 let fam = getFamily(lib, codeArt);
 
-                let isTerm = !isPret && (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k)))
-                && !KEY_NOT_TERM.some(k => lib.includes(k)) && !isWatch && !lib.includes("COQUE") && !lib.includes("ETUI")
-                && !lib.includes("PROTECTION") && absVal > 15 && !isPret;
+                // ── Détection terminal ──────────────────────────────────
+                let isTerm = !isPret &&
+                    (KEY_STOCKAGE.some(k => lib.includes(k)) || KEY_MODELE.some(k => lib.includes(k))) &&
+                    !KEY_NOT_TERM.some(k => lib.includes(k)) &&
+                    !isWatch &&
+                    !lib.includes("COQUE") && !lib.includes("ETUI") &&
+                    !lib.includes("PROTECTION") &&
+                    !lib.includes("ALCATEL") &&      // téléphones fixes → ACC_HOME
+                    absVal > 15 &&
+                    !isPret;
 
-                let isReco = isTerm && (lib.includes("RECO") || lib.includes("RECONDITIONNE") || lib.includes("OFFRE 2ND") || lib.includes("REC") || lib.includes("RENEWD") || lib.includes("RECOMMERCE"));
+                // ── Détection reconditionné ─────────────────────────────
+                // Tous les patterns "REC" vus dans les données réelles
+                let isReco = isTerm && (
+                    lib.includes("RECONDITIONNE") ||
+                    lib.includes("OFFRE 2ND") ||
+                    lib.includes("RENEWD") ||
+                    lib.includes("RECOMMERCE") ||
+                    lib.includes("REC GR") ||    // REC Gr B, REC GrB
+                    lib.includes("C REC") ||     // C REC GrB
+                    lib.includes("R REC") ||     // R REC Gr B
+                    lib.includes("L REC") ||     // L REC Gr B
+                    lib.includes("EF REC") ||    // EF REC GrB V2
+                    lib.includes("P REC")        // P REC Gr B
+                );
 
+                // ── Calcul CA HT (ACC mobile + PROT + Watch uniquement) ─
                 let ht = 0;
                 if (!isRefund) {
                     if (isWatch) {
                         ht = caVal / 1.2;
-                    } else if ((fam === "ACC" || fam === "PROT") && !isLabelBlacklisted && !isTransfert && !isParafoudre && !isTerm) {
+                    } else if (
+                        (fam === "ACC" || fam === "PROT") &&
+                        !isLabelBlacklisted &&
+                        !isTransfert &&
+                        !isParafoudre &&
+                        !isTerm
+                    ) {
                         ht = caVal / 1.2;
                     }
                 }
 
                 tMonth[v].CA += ht;
                 g_CA += ht;
-                if (!tMonth[v].tickets[ticketId]) tMonth[v].tickets[ticketId] = { date: rowDateStr, items: [] };
+
+                if (!tMonth[v].tickets[ticketId]) {
+                    tMonth[v].tickets[ticketId] = { date: rowDate, items: [] };
+                }
 
                 const article = { lib, fam, ca: (ht > 0 || isPriceExcluded) ? caVal : 0 };
                 tMonth[v].tickets[ticketId].items.push(article);
@@ -216,45 +323,67 @@ export default function MobileDashboard({ config }) {
                     if (isToday) tDay[v][key] += val;
                 };
 
-                    if (isTerm) {
-                        updateStat('Terminaux');
-                        g_Term += modifier;
-                        if (isReco) updateStat('Reco');
-                    }
+                // ── Terminaux & Reco ────────────────────────────────────
+                if (isTerm) {
+                    updateStat('Terminaux');
+                    g_Term += modifier;
+                    if (isReco) updateStat('Reco');
+                }
 
-                    if ((fam === "ACC" || fam === "PROT" || isWatch) && absVal > 1 && !isParafoudre) {
-                        tMonth[v].nbAcc += modifier;
-                        if (isToday) tDay[v].nbAcc += modifier;
-                    }
+                // ── nbAcc : UNIQUEMENT accessoires MOBILES (fam ACC, PROT, Watch)
+                // ACC_HOME (parafoudre, alcatel) est exclu car fam !== "ACC"
+                if (
+                    (fam === "ACC" || fam === "PROT" || isWatch) &&
+                    absVal > 1
+                ) {
+                    tMonth[v].nbAcc += modifier;
+                    if (isToday) tDay[v].nbAcc += modifier;
+                }
 
-                    if (CODES.Broadband.includes(codeArt)) updateStat('Broadband');
-                    if (CODES.Mobile.includes(codeArt)) updateStat('Mobile');
-                    if (CODES.MIG.includes(codeArt)) updateStat('MIG');
-                    if (CODES.MEV.includes(codeArt)) updateStat('MEV');
-                    if (CODES.Cyber.includes(codeArt)) updateStat('Cyber');
-                    if (CODES.MP.includes(codeArt)) updateStat('MP');
-                    if (CODES.Assurance.includes(codeArt)) {
-                        updateStat('Assurance');
-                        g_Assur += modifier;
-                    }
+                // ── Forfaits / Box / MIG / MEV / Cyber / MP ────────────
+                if (CODES.Broadband.includes(codeArt)) updateStat('Broadband');
+                if (CODES.Mobile.includes(codeArt)) updateStat('Mobile');
+                if (CODES.MIG.includes(codeArt)) updateStat('MIG');
+                if (CODES.MEV.includes(codeArt)) updateStat('MEV');
+                if (CODES.Cyber.includes(codeArt)) updateStat('Cyber');
+                if (CODES.MP.includes(codeArt)) updateStat('MP');
 
-                    if (isToday) tDay[v].CA += ht;
+                // ── Assurance : CODES.Assurance uniquement
+                // 804460 (ASSU LIGNE PRO 12E) et 804891 (ASSU LIGNE PRO 17E)
+                // sont volontairement absents de CODES.Assurance → non comptés
+                if (CODES.Assurance.includes(codeArt)) {
+                    updateStat('Assurance');
+                    g_Assur += modifier;
+                }
+
+                if (isToday) tDay[v].CA += ht;
             }
         });
 
-        setGlobalData({ ca: g_CA, assur: g_Term > 0 ? Math.round((g_Assur / g_Term) * 100) : 0, counts: g_Counts });
-        setStatsMonth(tMonth); setStatsDay(tDay);
+        setGlobalData({
+            ca: g_CA,
+            assur: g_Term > 0 ? Math.round((g_Assur / g_Term) * 100) : 0,
+            counts: g_Counts
+        });
+        setStatsMonth(tMonth);
+        setStatsDay(tDay);
         setLoading(false);
     };
 
     const openGlobalComparison = (category) => {
         const nbVendeurs = Object.keys(teamMap).length || 1;
         const objectives = config?.objectifs || {};
-        let indivTarget = (category === 'TxAssur') ? 42 : (viewMode === 'month' ? Math.ceil((objectives[category] || 0) / nbVendeurs) : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
+        let indivTarget = (category === 'TxAssur')
+            ? 42
+            : (viewMode === 'month'
+                ? Math.ceil((objectives[category] || 0) / nbVendeurs)
+                : Math.ceil(((objectives[category] || 0) / 25) / nbVendeurs) || 1);
 
         const chartData = Object.keys(currentStats).map(code => {
             const s = currentStats[code];
-            let done = (category === 'TxAssur') ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0) : s[category];
+            let done = (category === 'TxAssur')
+                ? (s.Terminaux > 0 ? Math.round((s.Assurance / s.Terminaux) * 100) : 0)
+                : s[category];
             let remaining = (category === 'TxAssur') ? 0 : Math.max(0, indivTarget - done);
 
             return {
@@ -329,7 +458,9 @@ export default function MobileDashboard({ config }) {
         </div>
         {['Terminaux', 'Mobile', 'Broadband', 'MIG', 'MEV', 'MP', 'Cyber'].map(key => {
             const style = getCategoryStyle(key);
-            const count = viewMode === 'month' ? (globalData.counts[key] || 0) : Object.values(currentStats).reduce((acc, s) => acc + (s[key] || 0), 0);
+            const count = viewMode === 'month'
+                ? (globalData.counts[key] || 0)
+                : Object.values(currentStats).reduce((acc, s) => acc + (s[key] || 0), 0);
             const obj = config?.objectifs?.[key] || 0;
             const displayVal = (obj > 0 && viewMode === 'month') ? `${count} / ${obj}` : count;
 
@@ -339,7 +470,7 @@ export default function MobileDashboard({ config }) {
                 <div className="stat-value">{displayVal}</div>
                 <div className="card-label">{style.label}</div>
                 </div>
-            )
+            );
         })}
         </div>
 
@@ -370,12 +501,12 @@ export default function MobileDashboard({ config }) {
                 <div className="ca-box"><strong>{Math.round(s.CA)}€</strong> <ChevronRight size={14} color="#FF7900" /></div>
                 </div>
                 </div>
-            )
+            );
         })}
         </div>
         </div>
 
-        {/* MODALS (Comparison, CA, Tickets) - Identiques à ta version précédente */}
+        {/* MODAL COMPARAISON */}
         {compareMode && (
             <div className="glass-overlay" onClick={() => setCompareMode(null)}>
             <div className="glass-modal" style={{width: '95%', maxWidth: '500px'}} onClick={e => e.stopPropagation()}>
@@ -387,30 +518,33 @@ export default function MobileDashboard({ config }) {
             <Bar
             data={{
                 labels: compareMode.data.map(d => d.name),
-                         datasets: [
-                             {
-                                 label: 'Fait',
-                                 data: compareMode.data.map(d => d.done),
-                         backgroundColor: compareMode.data.map(d => d.color),
-                         borderRadius: 6,
-                         barThickness: 20,
-                         datalabels: {
-                             anchor: compareMode.isAssur ? 'end' : 'center',
-                             align: compareMode.isAssur ? 'right' : 'center',
-                             color: compareMode.isAssur ? '#1a1a1a' : '#fff',
-                             font: { weight: '900', size: 11 },
-                             offset: compareMode.isAssur ? 8 : 0
-                         }
-                             },
-                             ...(!compareMode.isAssur ? [{
-                                 label: 'Reste',
-                                 data: compareMode.data.map(d => d.remaining),
-                                 backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                                 borderRadius: 6,
-                                 barThickness: 20,
-                                 datalabels: { anchor: 'end', align: 'right', color: '#1a1a1a', offset: 8, font: { weight: 'bold', size: 12 } }
-                             }] : [])
-                         ]
+                datasets: [
+                    {
+                        label: 'Fait',
+                        data: compareMode.data.map(d => d.done),
+                        backgroundColor: compareMode.data.map(d => d.color),
+                        borderRadius: 6,
+                        barThickness: 20,
+                        datalabels: {
+                            anchor: compareMode.isAssur ? 'end' : 'center',
+                            align: compareMode.isAssur ? 'right' : 'center',
+                            color: compareMode.isAssur ? '#1a1a1a' : '#fff',
+                            font: { weight: '900', size: 11 },
+                            offset: compareMode.isAssur ? 8 : 0
+                        }
+                    },
+                    ...(!compareMode.isAssur ? [{
+                        label: 'Reste',
+                        data: compareMode.data.map(d => d.remaining),
+                        backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                        borderRadius: 6,
+                        barThickness: 20,
+                        datalabels: {
+                            anchor: 'end', align: 'right', color: '#1a1a1a',
+                            offset: 8, font: { weight: 'bold', size: 12 }
+                        }
+                    }] : [])
+                ]
             }}
             options={{
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
@@ -426,8 +560,11 @@ export default function MobileDashboard({ config }) {
                     }
                 },
                 scales: {
-                    x: { stacked: !compareMode.isAssur, display: false, beginAtZero: true, suggestedMax: Math.max(...compareMode.data.map(d => d.done + (compareMode.isAssur ? 0 : d.remaining))) * 1.2 },
-                         y: { stacked: !compareMode.isAssur, grid: { display: false }, ticks: { autoSkip: false, font: { size: 12, weight: 'bold' } } }
+                    x: {
+                        stacked: !compareMode.isAssur, display: false, beginAtZero: true,
+                        suggestedMax: Math.max(...compareMode.data.map(d => d.done + (compareMode.isAssur ? 0 : d.remaining))) * 1.2
+                    },
+                    y: { stacked: !compareMode.isAssur, grid: { display: false }, ticks: { autoSkip: false, font: { size: 12, weight: 'bold' } } }
                 }
             }}
             />
@@ -436,6 +573,7 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
+        {/* MODAL PERFORMANCE BOUTIQUE */}
         {caModal && (
             <div className="glass-overlay" onClick={() => setCaModal(false)}>
             <div className="glass-modal" onClick={e => e.stopPropagation()} style={{padding: '25px'}}>
@@ -466,6 +604,7 @@ export default function MobileDashboard({ config }) {
             </div>
         )}
 
+        {/* MODAL TICKETS VENDEUR */}
         {selectedSeller && (
             <div className="glass-overlay" onClick={() => setSelectedSeller(null)}>
             <div className="glass-modal" onClick={e => e.stopPropagation()}>
@@ -487,7 +626,7 @@ export default function MobileDashboard({ config }) {
                             </div>
                         ))}
                         </div>
-                    )
+                    );
                 })}
                 </div>
             ))}
@@ -520,13 +659,13 @@ export default function MobileDashboard({ config }) {
             .stat-value { font-size: 18px; font-weight: 900; white-space: nowrap; }
             .card-label { font-size: 10px; font-weight: bold; opacity: 0.8; margin-top: 4px; }
             .seller-card-v2 { background: white; margin: 10px 15px; border-radius: 18px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); cursor: pointer; }
+            .seller-main-info { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
             .rank-badge { width: 22px; height: 22px; background: #1a1a1a; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
             .name { font-weight: 800; font-size: 14px; }
             .basic-kpis { font-size: 11px; color: #666; }
             .seller-metrics { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
             .metric-pill { background: #f5f5f5; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; }
             .ca-box { margin-left: auto; color: #FF7900; display: flex; align-items: center; gap: 4px; font-size: 13px; }
-
             .glass-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 15px; }
             .glass-modal { background: white; border-radius: 25px; width: 100%; max-width: 500px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }
             .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%; }
@@ -535,7 +674,6 @@ export default function MobileDashboard({ config }) {
             .ticket-header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 11px; color: #999; margin-bottom: 10px; }
             .ticket-line { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed #f0f0f0; }
             .ticket-line span { color: #333; flex: 1; padding-right: 10px; text-align: left; }
-
             .ro-main-stat { text-align: center; margin-bottom: 20px; }
             .ro-label { font-size: 14px; color: #666; }
             .ro-value { font-size: 32px; font-weight: 900; color: #1a1a1a; }
@@ -545,7 +683,7 @@ export default function MobileDashboard({ config }) {
             .ro-subval { font-size: 16px; font-weight: bold; }
             .ro-footer-card { background: #f9fafb; border-radius: 15px; padding: 15px; }
             .ro-footer-item { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
-            `}</style>
-            </div>
+        `}</style>
+        </div>
     );
 }
