@@ -43,7 +43,7 @@ export default function MobileDashboard({ config }) {
         GOOGLE: { label: "📱 GOOGLE", color: "#4285F4" },
         MOTOROLA: { label: "📱 MOTOROLA", color: "#5C6BC0" },
         PROT: { label: "🛡️ PROTECTION", color: "#059669" },
-        ACC: { label: "🎧 ACCESSOIRES", color: "#4b5563" },
+        ACC: { label: "🎧 ACCESSOIRES & CHARGEURS", color: "#4b5563" },
         ACC_HOME: { label: "🏠 ACC. DOMICILE", color: "#9ca3af" },
         TRANSFERTS: { label: "📲 TRANSFERTS", color: "#4F46E5" },
         SERV: { label: "✨ SERVICES / ASSUR", color: "#FF7900" },
